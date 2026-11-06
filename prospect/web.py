@@ -6613,6 +6613,10 @@ class Handler(BaseHTTPRequestHandler):
         "/img/marque-vert-clair.png", "/img/marque-vert-sombre.png",
     )
 
+    # Les deux seules routes que le scan de 7 h 30 demande au serveur. Pas une
+    # de plus : une cle volee ne doit pas valoir un compte patron.
+    ROUTES_ROUTINE = ("/api/whatsapp/relire", "/api/groupes/ouvrir")
+
     def _jeton_de_session(self):
         brut = self.headers.get("Cookie") or ""
         for bout in brut.split(";"):
@@ -6649,6 +6653,16 @@ class Handler(BaseHTTPRequestHandler):
             return None
         if path in ("/api/connexion", "/api/deconnexion", "/api/moi"):
             return None
+        # Le scan quotidien, sur presentation de sa cle. Ce n'est volontairement
+        # PAS un test d'adresse : cloudflared parle a 127.0.0.1 comme la maison
+        # (voir comptes.cle_routine, la raison y est ecrite).
+        if path in self.ROUTES_ROUTINE:
+            try:
+                from . import comptes
+                if comptes.est_la_routine(self.headers.get("X-Routine")):
+                    return None
+            except Exception:
+                pass
         qui = self._qui()
         if not qui:
             return "connexion requise"

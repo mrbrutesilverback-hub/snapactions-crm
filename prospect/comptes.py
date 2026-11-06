@@ -27,6 +27,7 @@ import hashlib
 import hmac
 import os
 import re
+import secrets
 
 from . import db, util
 
@@ -298,3 +299,45 @@ def menage():
     limite = (dt.datetime.now() - dt.timedelta(days=SESSION_JOURS)
               ).isoformat(" ", "seconds")
     db.ex("DELETE FROM sessions WHERE cree_le < ?", (limite,))
+
+
+# ----------------------------------------------------------- la routine
+
+# Le scan de 7 h 30 n'a pas de doigts : il ne peut pas taper un mot de passe.
+# Il lui faut pourtant deux routes du serveur — relire WhatsApp et ouvrir les
+# grilles de groupes — parce que le serveur, lance depuis le Terminal, porte
+# des autorisations macOS que launchd n'a pas.
+#
+# On ne laisse PAS passer la boucle locale pour autant, et c'est le point
+# important : cloudflared tourne sur ce Mac et parle lui aussi a 127.0.0.1.
+# Une requete venue d'internet arrive donc avec exactement la meme adresse
+# qu'une requete de la maison. « N'autoriser que le local » reviendrait a
+# ouvrir le CRM au monde entier en croyant l'avoir ferme.
+#
+# Une cle, elle, ne se devine pas et ne traverse pas le tunnel. Elle vit dans
+# la base, sur le disque du Mac : qui peut la lire pouvait deja tout lire.
+
+
+def cle_routine(creer=True):
+    """La cle du scan quotidien. Fabriquee au premier appel, puis gardee."""
+    cle = db.get_setting("cle_routine", "") or ""
+    if cle:
+        return cle
+    if not creer:
+        return None
+    cle = secrets.token_urlsafe(32)
+    db.set_setting("cle_routine", cle)
+    db.log("comptes", "Cle de la routine creee")
+    return cle
+
+
+def est_la_routine(presentee):
+    """Vrai si l'en-tete presentee est bien celle du scan.
+
+    Comparaison a temps constant : repondre plus vite sur un mauvais premier
+    caractere laisserait deviner la cle, un caractere a la fois.
+    """
+    vraie = cle_routine(creer=False)
+    if not vraie or not presentee:
+        return False
+    return hmac.compare_digest(str(presentee), str(vraie))

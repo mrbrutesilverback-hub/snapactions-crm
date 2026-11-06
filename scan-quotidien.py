@@ -40,17 +40,35 @@ def _par_le_serveur(chemin, corps=None):
 
     Le serveur demarre depuis lancer.command, donc depuis le Terminal : il
     herite de ses autorisations macOS, ce que launchd n'a pas.
+
+    On presente la cle de la routine. Sans elle, des que le CRM est ouvert
+    pour le sourceur, le serveur repond 401 et ce scan n'avait aucun moyen de
+    le savoir : l'erreur etait avalee avec les pannes reseau, et le journal
+    annoncait « application fermee » alors qu'elle tournait. Les grilles de
+    groupes ne s'ouvraient plus le matin, sans un mot pour le dire.
     """
     import json
     import urllib.error
     import urllib.request
     donnees = json.dumps(corps or {}).encode("utf-8")
+    entetes = {"Content-Type": "application/json"}
+    try:
+        from prospect import comptes
+        cle = comptes.cle_routine()
+        if cle:
+            entetes["X-Routine"] = cle
+    except Exception:
+        pass
     requete = urllib.request.Request(
-        "http://127.0.0.1:8765" + chemin, data=donnees,
-        headers={"Content-Type": "application/json"})
+        "http://127.0.0.1:8765" + chemin, data=donnees, headers=entetes)
     try:
         with urllib.request.urlopen(requete, timeout=120) as rep:
             return json.loads(rep.read().decode("utf-8"))
+    except urllib.error.HTTPError as exc:
+        # HTTPError descend de URLError : il doit etre attrape AVANT, sinon
+        # un refus net redevient une panne muette.
+        dire("  refus de l'application sur %s (%s)" % (chemin, exc.code))
+        return None
     except (urllib.error.URLError, OSError, ValueError):
         return None
 
@@ -134,11 +152,13 @@ def main():
             dire("  groupes  : %d grille(s) ouverte(s) dans Chrome, "
                  "a depouiller avec le favori" % ouvert.get("n", 0))
 
-    # 3 ter. Le menage : les fiches trop loin pour etre faites un jour. Sans
-    #        cette passe, la page Tournois se remplit d'annonces que Julien ne
-    #        couvrira jamais et les vraies se noient dedans.
-    jetes = sources.purger_hors_perimetre()
-    dire("  menage   : %d fiche(s) hors perimetre supprimee(s)" % len(jetes))
+    # 3 ter. Plus de purge des fiches lointaines. sources.purger_hors_perimetre
+    #        a ete mise a la retraite le jour ou Julien s'est mis a recruter
+    #        des photographes partout : une fiche lointaine n'est plus un
+    #        dechet, c'est du travail pour quelqu'un d'autre, et elle est
+    #        marquee « reseau ». La fonction leve donc une RuntimeError quand
+    #        on l'appelle pour de vrai — l'appel etait reste ici, et faisait
+    #        mourir le scan juste avant la purge, les contacts et la suite.
 
     # Le reste du menage : tournois passes, affiches en double, vieilles
     # sauvegardes. Rien de ce que Julien a touche n'y passe — une mission, un
