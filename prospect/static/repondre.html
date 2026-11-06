@@ -1,0 +1,576 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Répondre — SnapActions</title>
+<style>
+/* Les deux piles ou dort l'argent deja gagne : ceux qui ont ecrit et
+   attendent, ceux dont le rappel est echu. Meme langage visuel que le
+   Reperage et le Studio — on n'apprend pas un troisieme ecran.
+
+   Une carte a la fois, en grand. Ce n'est pas un tableau de bord qu'on
+   regarde, c'est une pile qu'on vide : la question n'est jamais « ou en
+   suis-je ? » mais « a qui je reponds maintenant ? ». */
+:root{
+  --ground:#F2F5F8; --card:#FFFFFF; --sunk:#EDF1F6;
+  --ink:#0F1621; --ink-2:#2C3845; --ink-3:#5D6975;
+  --line:#DCE3EB; --line-soft:#E7ECF2;
+  --blue:#0A6CF0; --blue-ink:#FFFFFF; --blue-soft:#E8F1FE;
+  --green:#0C9A6C; --green-soft:#E0F5EE;
+  --amber:#AD6200; --amber-soft:#FBF1E0;
+  --red:#DC2626; --red-soft:#FDECEC;
+  --lift:0 1px 2px rgba(15,22,33,.05), 0 12px 32px -20px rgba(15,22,33,.26);
+}
+@media (prefers-color-scheme:dark){
+  :root{
+    --ground:#0D1117; --card:#151B23; --sunk:#1E2630;
+    --ink:#E6EDF3; --ink-2:#C3CEDA; --ink-3:#8B97A4;
+    --line:#2A333F; --line-soft:#232C36;
+    --blue:#4C9AFF; --blue-ink:#FFFFFF; --blue-soft:#102642;
+    --green:#3FD68C; --green-soft:#0E2E22;
+    --amber:#E8B44B; --amber-soft:#2F2611;
+    --red:#FF7B72; --red-soft:#331F1D;
+    --lift:0 1px 2px rgba(0,0,0,.5), 0 14px 36px -20px rgba(0,0,0,.9);
+  }
+}
+*{box-sizing:border-box}
+body{margin:0; background:var(--ground); color:var(--ink);
+  font-family:-apple-system,BlinkMacSystemFont,"SF Pro Text","Helvetica Neue",Arial,sans-serif;
+  font-size:17px; line-height:1.47; -webkit-font-smoothing:antialiased}
+.wrap{max-width:860px; margin:0 auto; padding:0 24px 90px}
+.marque{font-size:13px; letter-spacing:.05em; text-transform:uppercase;
+  color:var(--ink-3); font-weight:600; padding:18px 0 0}
+h1{font-size:30px; line-height:1.18; letter-spacing:-.02em; font-weight:650;
+  margin:30px 0 6px}
+.chapeau{margin:0 0 2px; color:var(--ink-2); font-size:16px}
+.chapeau b{color:var(--ink); font-weight:650}
+
+/* Les deux piles. Le chiffre est l'information, pas le mot. */
+.piles{display:flex; gap:10px; flex-wrap:wrap; margin:26px 0 0}
+.pile{flex:1 1 230px; text-align:left; cursor:pointer; background:var(--card);
+  border:1px solid var(--line); border-radius:15px; padding:13px 16px;
+  font:inherit; color:var(--ink); box-shadow:var(--lift)}
+.pile:hover{border-color:var(--ink-3)}
+.pile.on{border-color:var(--blue); box-shadow:0 0 0 3px var(--blue-soft), var(--lift)}
+.pile b{display:block; font-size:30px; font-weight:680; letter-spacing:-.02em;
+  line-height:1.1}
+.pile i{display:block; font-style:normal; font-size:14.5px; color:var(--ink-3);
+  margin-top:2px}
+.pile.brulant b{color:var(--red)}
+.pile.chaud b{color:var(--amber)}
+
+/* La barre d'avancement : combien il en reste, et un pas en arriere. */
+.barre{display:flex; align-items:center; gap:12px; margin:26px 0 12px;
+  flex-wrap:wrap}
+.barre .compte{font-size:14.5px; color:var(--ink-3)}
+.barre button{font:inherit; font-size:14.5px; padding:7px 13px; cursor:pointer;
+  border:1px solid var(--line); background:var(--card); color:var(--ink-2);
+  border-radius:100px}
+.barre button:hover{border-color:var(--ink-3); color:var(--ink)}
+.barre button:disabled{opacity:.4; cursor:default}
+
+/* La carte. */
+.fiche{background:var(--card); border:1px solid var(--line); border-radius:18px;
+  padding:22px 24px 20px; box-shadow:var(--lift)}
+.fiche.brulant{border-color:var(--red); box-shadow:0 0 0 3px var(--red-soft), var(--lift)}
+.qui{font-size:23px; font-weight:660; letter-spacing:-.015em; margin:0}
+.ou{margin:3px 0 0; color:var(--ink-3); font-size:15px}
+.marques{display:flex; gap:7px; flex-wrap:wrap; margin:13px 0 0}
+.marque-t{font-size:13.5px; font-weight:600; padding:5px 11px; border-radius:100px;
+  background:var(--sunk); color:var(--ink-2); border:1px solid var(--line-soft)}
+.marque-t.rouge{background:var(--red-soft); color:var(--red); border-color:transparent}
+.marque-t.ambre{background:var(--amber-soft); color:var(--amber); border-color:transparent}
+.marque-t.vert{background:var(--green-soft); color:var(--green); border-color:transparent}
+
+/* Le fil : savoir qui a parle en dernier est la moitie de l'information. */
+.fil{margin:18px 0 0; display:flex; flex-direction:column; gap:7px}
+.bulle{max-width:86%; padding:9px 13px; border-radius:15px; font-size:15.5px;
+  white-space:pre-wrap; word-break:break-word}
+.bulle.eux{background:var(--sunk); border-bottom-left-radius:5px; align-self:flex-start}
+.bulle.moi{background:var(--blue-soft); color:var(--ink); align-self:flex-end;
+  border-bottom-right-radius:5px}
+.etiq-fil{font-size:12.5px; letter-spacing:.04em; text-transform:uppercase;
+  color:var(--ink-3); font-weight:600; margin:18px 0 0}
+.resume{margin:12px 0 0; padding:11px 14px; border-radius:12px;
+  background:var(--sunk); font-size:15px; color:var(--ink-2)}
+.deja{margin:12px 0 0; font-size:14.5px; color:var(--ink-3);
+  border-left:3px solid var(--line); padding-left:12px; white-space:pre-wrap}
+
+/* Le message. */
+textarea{width:100%; margin:16px 0 0; font:inherit; font-size:16px;
+  line-height:1.5; padding:14px 16px; border-radius:13px; resize:vertical;
+  min-height:150px; background:var(--sunk); color:var(--ink);
+  border:1px solid var(--line)}
+textarea:focus{outline:none; border-color:var(--blue); background:var(--card)}
+
+.gestes{display:flex; gap:9px; flex-wrap:wrap; margin:16px 0 0}
+.gestes button, .gestes a{font:inherit; font-size:15.5px; font-weight:560;
+  padding:11px 17px; border-radius:11px; cursor:pointer; text-decoration:none;
+  border:1px solid var(--line); background:var(--card); color:var(--ink);
+  display:inline-flex; align-items:center; gap:7px}
+.gestes button:hover, .gestes a:hover{border-color:var(--ink-3)}
+.gestes .primaire{background:var(--green); border-color:var(--green); color:#fff}
+.gestes .primaire:hover{filter:brightness(1.1); border-color:var(--green)}
+.gestes .bleu{background:var(--blue); border-color:var(--blue); color:#fff}
+.gestes .bleu:hover{filter:brightness(1.1); border-color:var(--blue)}
+/* Une ligne fixe ne porte pas WhatsApp : le bouton le dit sur lui-meme. */
+.gestes .fixe{background:var(--amber-soft); border-color:var(--amber);
+  color:var(--amber); font-weight:500}
+.gestes button:disabled{opacity:.4; cursor:default}
+/* Les boutons d'envoi sont poses dans leur propre boite pour passer en
+   premier ; elle s'efface pour qu'ils restent sur la meme ligne. */
+.env-rang{display:contents}
+.fixe-dit{flex:1 1 100%; display:flex; gap:9px; align-items:baseline;
+  padding:10px 14px; border-radius:11px; background:var(--amber-soft);
+  border:1px solid var(--amber); color:var(--amber); font-size:14.5px}
+.fixe-dit b{font-weight:650}
+
+.tranche{display:flex; gap:9px; flex-wrap:wrap; margin:18px 0 0;
+  padding:16px 0 0; border-top:1px solid var(--line-soft)}
+.tranche button{font:inherit; font-size:14.5px; padding:9px 15px; cursor:pointer;
+  border:1px solid var(--line); background:transparent; color:var(--ink-2);
+  border-radius:100px}
+.tranche button:hover{border-color:var(--ink-3); color:var(--ink)}
+.tranche .fini{border-color:var(--green); color:var(--green); font-weight:600}
+.avert{margin:14px 0 0; font-size:13.5px; color:var(--ink-3)}
+
+.vide{padding:46px 20px; text-align:center; color:var(--ink-3);
+  background:var(--card); border:1px solid var(--line); border-radius:18px}
+.vide b{display:block; font-size:19px; color:var(--ink); margin-bottom:6px}
+.souci{margin:22px 0 0; padding:14px 16px; border-radius:13px;
+  background:var(--red-soft); color:var(--red); font-size:15px}
+
+/* Le journal WhatsApp vieillit en silence : le scan de 7 h 30 n'a pas le droit
+   de lire la base, il passe la main au serveur, et si le serveur a perdu son
+   autorisation plus personne ne lit rien. Trois matins ont ete perdus ainsi.
+   Le bandeau rend la panne visible le lendemain, pas quatre jours apres. */
+.perime{display:flex; align-items:center; gap:12px; flex-wrap:wrap;
+  margin:20px 0 0; padding:13px 16px; border-radius:13px;
+  background:var(--amber-soft); color:var(--amber); font-size:15px;
+  border:1px solid var(--amber)}
+.perime b{font-weight:680}
+.perime button{margin-left:auto; font:inherit; font-size:14.5px; font-weight:600;
+  padding:8px 15px; border-radius:100px; cursor:pointer;
+  background:var(--amber); border:1px solid var(--amber); color:var(--ground)}
+.perime button:hover{filter:brightness(1.1)}
+.perime button:disabled{opacity:.5; cursor:default}
+.toast{position:fixed; left:50%; bottom:26px; transform:translateX(-50%);
+  background:var(--ink); color:var(--ground); padding:11px 18px; border-radius:100px;
+  font-size:15px; box-shadow:var(--lift); z-index:50}
+
+/* L'attribut hidden doit gagner. Sans cette regle, une classe qui declare
+   display:flex ou grid reste visible malgre hidden : le bandeau s'affichait
+   vide, comme une bande de couleur sans texte. */
+[hidden]{display:none !important}
+
+/* Les boutons qui envoient vraiment : vert plein, pour qu'on ne les
+   confonde pas avec ceux qui preparent le message. */
+button.env-direct{font:inherit; font-size:14.5px; font-weight:650;
+  padding:8px 15px; border-radius:10px; cursor:pointer;
+  background:var(--green); border:1px solid var(--green); color:#fff;
+  display:inline-flex; align-items:center; gap:6px}
+button.env-direct:hover{filter:brightness(1.08)}
+button.env-direct:disabled{opacity:.6; cursor:default}
+button.env-direct.fait{background:var(--sunk); color:var(--ink-3);
+  border-color:var(--line); font-weight:600}
+
+/* Changer de numero : discret a cote du bouton vert. */
+button.env-chg{font:inherit; font-size:13.5px; padding:7px 11px; border-radius:10px;
+  cursor:pointer; background:var(--sunk); color:var(--ink-2);
+  border:1px solid var(--line)}
+button.env-chg:hover{color:var(--ink); border-color:var(--blue)}
+.env-autre{display:inline-flex; gap:6px; align-items:center}
+.env-autre input{font:inherit; font-size:14.5px; padding:7px 10px; width:150px;
+  border-radius:10px; background:var(--card); color:var(--ink);
+  border:1px solid var(--line)}
+.env-autre input:focus{outline:none; border-color:var(--blue)}
+.env-autre button{font:inherit; font-size:14px; padding:7px 12px; border-radius:10px;
+  cursor:pointer; background:var(--blue); border:1px solid var(--blue); color:#fff}
+</style>
+<link rel="stylesheet" href="/nav.css">
+<script>
+  // Le theme choisi en bas du menu vaut pour tous les ecrans, pas seulement
+  // la plateforme. Pose avant tout rendu, sinon la page clignote.
+  try {
+    var t = localStorage.getItem('theme');
+    if (t === 'dark' || t === 'light') document.documentElement.dataset.theme = t;
+  } catch (e) {}
+</script>
+<link rel="stylesheet" href="/bitchat.css">
+</head>
+<body>
+<div class="wrap">
+  <div class="marque">SnapActions</div>
+  <h1>Répondre</h1>
+  <p class="chapeau" id="chapeau">Lecture…</p>
+
+  <div class="perime" id="perime" hidden></div>
+  <div class="piles" id="piles"></div>
+  <div class="barre" id="barre" hidden></div>
+  <div id="zone"></div>
+  <div class="souci" id="souci" hidden></div>
+</div>
+<div class="toast" id="toast" hidden></div>
+
+<script>
+function $(s, r){ return (r || document).querySelector(s); }
+function neud(b, c, t){ const e = document.createElement(b); if (c) e.className = c;
+  if (t != null) e.textContent = t; return e; }
+let minuteur = null;
+function toast(m){ const t = $("#toast"); t.textContent = m; t.hidden = false;
+  clearTimeout(minuteur); minuteur = setTimeout(() => { t.hidden = true; }, 2600); }
+
+/* Chrome, par le serveur : un wa.me ouvert par le navigateur de la page
+   atterrissait dans Firefox, ou la session WhatsApp n'existe pas. */
+function ouvrirLien(url){
+  fetch("/api/ouvrir", {method: "POST", headers: {"Content-Type": "application/json"},
+    body: JSON.stringify({url: url})})
+    .then(r => { if (!r.ok) throw new Error("refus"); })
+    .catch(() => window.open(url, "_blank", "noopener"));
+}
+
+/* Memes regles que partout : wa.me veut les chiffres seuls, et une ligne fixe
+   ne porte pas WhatsApp — en France (01 a 05, 09) comme a Monaco (+377 9). */
+function numeroWa(tel){
+  const brut = String(tel || "").replace(/\D/g, "").replace(/^00/, "");
+  const n = /^377/.test(brut) ? brut : brut.replace(/^0/, "33");
+  return n.length >= 10 ? n : "";
+}
+function estFixe(tel){
+  const brut = String(tel || "").replace(/\D/g, "").replace(/^00/, "");
+  if (/^377/.test(brut)) return /^3779/.test(brut) && brut.length === 11;
+  const n = brut.replace(/^0/, "33");
+  return /^33[1-59]/.test(n) && n.length === 11;
+}
+
+const P = {attendent: [], relancer: [], pile: "attendent", i: 0, faites: [],
+           masques: 0, tout: false};
+
+async function charger(){
+  try {
+    const r = await fetch("/api/repondre" + (P.tout ? "?tout=1" : ""));
+    if (!r.ok) throw new Error("le serveur a refusé (" + r.status + ")");
+    const d = await r.json();
+    P.attendent = d.attendent || [];
+    P.relancer = d.a_relancer || [];
+    P.masques = d.masques || 0;
+    peindreFraicheur(d.journal || {});
+    /* On s'ouvre sur la pile qui coute le plus cher : quelqu'un qui attend une
+       reponse se refroidit, un rappel echu dort sans se degrader. */
+    P.pile = P.attendent.length ? "attendent" : "relancer";
+    P.i = 0;
+    peindreEntete(d);
+    peindre();
+  } catch (e) {
+    $("#chapeau").textContent = "";
+    $("#souci").hidden = false;
+    $("#souci").textContent = "Impossible de lire la liste : " + e.message;
+  }
+}
+
+/* Depuis quand le journal WhatsApp n'a pas ete relu. Tant qu'il est frais on
+   n'en parle pas : un bandeau permanent ne se lit plus au bout d'une semaine. */
+function peindreFraicheur(j){
+  const b = $("#perime");
+  if (!j.perime) { b.hidden = true; return; }
+  b.hidden = false;
+  b.innerHTML = "";
+  const h = j.heures;
+  b.appendChild(neud("span", null, j.lu_le
+    ? "Le journal WhatsApp n’a pas été relu depuis "
+      + (h >= 48 ? Math.round(h / 24) + " jours" : Math.round(h) + " heures")
+      + " — des clubs ont pu répondre sans que ça se voie ici."
+    : "Le journal WhatsApp n’a jamais été relu sur ce Mac."));
+  const go = neud("button", null, "Relire maintenant");
+  go.type = "button";
+  go.addEventListener("click", async () => {
+    go.disabled = true; go.textContent = "Lecture…";
+    try {
+      const r = await fetch("/api/whatsapp/relire", {method: "POST",
+        headers: {"Content-Type": "application/json"}, body: "{}"});
+      const d = await r.json();
+      if (!r.ok) throw new Error(d.error || "refus");
+      toast(d.vus + " conversation(s) relues");
+      charger();
+    } catch (e) {
+      go.disabled = false; go.textContent = "Relire maintenant";
+      /* Le vrai motif, en entier : « macOS refuse la lecture » sans dire quoi
+         faire ensuite, on l'a deja paye quatre jours. */
+      b.appendChild(neud("div", null, e.message || "Lecture impossible"));
+    }
+  });
+  b.appendChild(go);
+}
+
+function peindreEntete(d){
+  const a = d.n_attendent || 0, r = d.n_relancer || 0;
+  $("#chapeau").innerHTML = (a || r)
+    ? "<b>" + (a + r) + "</b> dossiers où la parole est à vous. "
+      + (d.plus_vieux ? "Le plus ancien attend depuis <b>" + d.plus_vieux
+         + " jours</b>." : "")
+    : "Rien n’attend de réponse. Tout est à jour.";
+
+  const piles = $("#piles");
+  piles.innerHTML = "";
+  [["attendent", a, "ont écrit, sans réponse",
+    d.plus_vieux >= 14 ? "brulant" : (a ? "chaud" : "")],
+   ["relancer", r, "rappels échus", r ? "chaud" : ""]].forEach(([cle, n, mot, ton]) => {
+    const b = neud("button", "pile " + (ton || "") + (P.pile === cle ? " on" : ""));
+    b.type = "button";
+    b.appendChild(neud("b", null, String(n)));
+    b.appendChild(neud("i", null, mot));
+    b.addEventListener("click", () => { P.pile = cle; P.i = 0; peindre(); majPiles(); });
+    piles.appendChild(b);
+  });
+}
+
+function majPiles(){
+  [...document.querySelectorAll(".pile")].forEach((b, i) =>
+    b.classList.toggle("on", (i === 0) === (P.pile === "attendent")));
+}
+
+function liste(){ return P.pile === "attendent" ? P.attendent : P.relancer; }
+
+function peindre(){
+  const l = liste();
+  const zone = $("#zone"), barre = $("#barre");
+  if (!l.length) {
+    barre.hidden = true;
+    zone.innerHTML = "";
+    const v = neud("div", "vide");
+    v.appendChild(neud("b", null, P.pile === "attendent"
+      ? "Personne n’attend de réponse." : "Aucun rappel en retard."));
+    v.appendChild(neud("div", null, P.pile === "attendent"
+      ? "Les conversations où la dernière parole est à eux apparaîtront ici."
+      : "Les rappels programmés remonteront ici le jour où ils arrivent à échéance."));
+    zone.appendChild(v);
+    return;
+  }
+  if (P.i >= l.length) P.i = l.length - 1;
+  if (P.i < 0) P.i = 0;
+
+  barre.hidden = false;
+  barre.innerHTML = "";
+  const prec = neud("button", null, "← Précédent");
+  prec.type = "button"; prec.disabled = P.i === 0;
+  prec.addEventListener("click", () => { P.i--; peindre(); });
+  const suiv = neud("button", null, "Passer →");
+  suiv.type = "button"; suiv.disabled = P.i >= l.length - 1;
+  suiv.addEventListener("click", () => { P.i++; peindre(); });
+  barre.appendChild(prec);
+  barre.appendChild(suiv);
+  barre.appendChild(neud("span", "compte",
+    (P.i + 1) + " sur " + l.length + (P.faites.length ? " · " + P.faites.length + " traité(s)" : "")));
+
+  /* Ce qu'on a rayé ce matin sur « Aujourd'hui » n'apparaît pas ici non plus :
+     deux écrans qui ne sont pas d'accord sur ce qui est fait, c'est un écran
+     de trop. Le masquage ne tient qu'un jour, et ce bouton le lève. */
+  if (P.pile === "attendent" && (P.masques || P.tout)) {
+    const v = neud("button", null, P.tout
+      ? "Masquer ce qui est rayé"
+      : "Montrer les " + P.masques + " rayé(s) aujourd’hui");
+    v.type = "button";
+    v.addEventListener("click", () => { P.tout = !P.tout; charger(); });
+    barre.appendChild(v);
+  }
+
+  zone.innerHTML = "";
+  zone.appendChild(carte(l[P.i]));
+}
+
+function carte(it){
+  const f = neud("article", "fiche" + (it.urgence === "brulant" ? " brulant" : ""));
+  f.appendChild(neud("h2", "qui", it.club || "Sans nom"));
+  const ou = [it.sport, it.ville].filter(Boolean).join(" · ");
+  if (ou) f.appendChild(neud("p", "ou", ou.slice(0, 110)));
+
+  const m = neud("div", "marques");
+  if (P.pile === "attendent") {
+    m.appendChild(neud("span", "marque-t " + (it.jours >= 14 ? "rouge" : "ambre"),
+      "Ils ont écrit " + it.depuis));
+  } else {
+    m.appendChild(neud("span", "marque-t " + (it.retard >= 30 ? "rouge" : "ambre"),
+      "Rappel échu " + it.depuis));
+    if (it.jamais_ecrit) m.appendChild(neud("span", "marque-t", "jamais écrit"));
+  }
+  if (it.tel) m.appendChild(neud("span", "marque-t" + (estFixe(it.tel) ? " ambre" : ""),
+    it.tel + (estFixe(it.tel) ? " · fixe" : "")));
+  if (it.mail) m.appendChild(neud("span", "marque-t", it.mail));
+  if (it.evenement) m.appendChild(neud("span", "marque-t vert", it.evenement.slice(0, 44)));
+  f.appendChild(m);
+
+  if (it.resume) f.appendChild(neud("div", "resume", it.resume));
+
+  if (it.fil && it.fil.length) {
+    f.appendChild(neud("div", "etiq-fil", "La conversation"));
+    const fil = neud("div", "fil");
+    it.fil.forEach(msg => {
+      const b = neud("div", "bulle " + (msg.de_moi ? "moi" : "eux"), msg.texte.slice(0, 600));
+      /* Qui parle, devant son message : « Noémie », pas « eux ». */
+      if (!msg.de_moi && it.qui) b.dataset.qui = it.qui;
+      /* L'heure du message, que le theme affiche en fin de ligne. */
+      if (msg.heure) b.dataset.quand = msg.heure;
+      fil.appendChild(b);
+    });
+    f.appendChild(fil);
+  } else if (it.deja_dit) {
+    f.appendChild(neud("div", "etiq-fil",
+      "Dernier mot de votre part" + (it.deja_dit_le ? " — " + it.deja_dit_le : "")));
+    f.appendChild(neud("div", "deja", it.deja_dit));
+  }
+
+  /* Le message. Il est propose, jamais envoye : Julien relit, corrige, et
+     c'est lui qui appuie. */
+  f.appendChild(neud("div", "etiq-fil", it.mot_titre || "Message proposé"));
+  const ta = document.createElement("textarea");
+  ta.id = "mot-rep";
+  ta.value = it.mot || "";
+  ta.setAttribute("aria-label", "Message à envoyer");
+  f.appendChild(ta);
+
+  /* La barre de reformulation, la meme que sur les autres ecrans : le modele
+     tourne sur ce Mac, rien ne sort d'ici. */
+  const ia = document.createElement("div");
+  ia.innerHTML = Reform.barre("mot-rep", [it.club, it.ville].filter(Boolean).join(" · "));
+  f.appendChild(ia.firstElementChild);
+
+  /* Le message ecrit d'apres la conversation. Le modele fige ignorait ce
+     qu'on s'etait dit : il proposait « je remonte le message » a un club a
+     qui Julien avait demande des dates puis envoye un « ? ». On demande donc
+     au modele local de relire le fil, pour la carte affichee seulement.
+     Si rien ne revient, le texte du modele reste : on ne vide jamais. */
+  if (it.task_id && it.chat_id) {
+    const marque = neud("div", "etiq-fil", "J\u2019adapte \u00e0 la conversation\u2026");
+    marque.style.marginTop = "6px";
+    f.insertBefore(marque, ta);
+    fetch("/api/repondre/" + it.task_id + "/mot")
+      .then(r => r.json())
+      .then(d => {
+        const z = $("#mot-rep");
+        if (!z) return;                      /* Julien a change de carte */
+        if (d && d.texte) {
+          z.value = d.texte;
+          marque.textContent = "Message \u00e9crit d\u2019apr\u00e8s la conversation";
+        } else {
+          marque.remove();
+        }
+      })
+      .catch(() => marque.remove());
+  }
+
+  const lire = () => ($("#mot-rep") || {}).value || "";
+  const num = numeroWa(it.tel);
+  const fixe = !!num && estFixe(it.tel);
+
+  const g = neud("div", "gestes");
+  /* Il y avait ici deux rangees qui se ressemblaient : « Ouvrir dans
+     WhatsApp » et « Par mail » n'ouvraient que la fenetre, juste au-dessus
+     des boutons qui envoient pour de bon. On ne savait plus lequel partait.
+     Il ne reste que ceux qui envoient — les memes que sur Reperage. */
+  const env = neud("div", "env-rang");
+  g.appendChild(env);
+  setTimeout(() => {
+    if (window.Envoyer) {
+      Envoyer.poser(env, {club_id: it.club_id, tel: it.tel, email: it.mail,
+                          objet: it.objet || "", texte: lire, note: false});
+    }
+  }, 0);
+  /* Un fixe ne porte pas WhatsApp. Le bouton le disait ; sans bouton, c'est
+     la carte qui le dit, avant qu'on essaie pour rien. */
+  if (fixe) {
+    const dit = neud("div", "fixe-dit");
+    dit.appendChild(neud("b", null, "Ligne fixe"));
+    dit.appendChild(neud("span", null, it.tel + " : WhatsApp n’y passera pas."
+      + (it.mail ? " Passez par le mail." : " Appelez, ou cherchez un portable.")));
+    g.appendChild(dit);
+  }
+  if (it.tel) {
+    const ap = neud("a", null, "Appeler");
+    ap.href = "tel:" + it.tel;
+    g.appendChild(ap);
+  }
+  const cp = neud("button", null, "Copier le texte");
+  cp.type = "button";
+  cp.addEventListener("click", async () => {
+    try { await navigator.clipboard.writeText(lire()); toast("Message copié"); }
+    catch (e) { toast("Copie refusée par le navigateur"); }
+  });
+  g.appendChild(cp);
+  f.appendChild(g);
+
+  /* Trancher. Rien n'est efface : « plus tard » repousse de deux semaines,
+     « ne plus relancer » annule le rappel sans toucher au club. */
+  const t = neud("div", "tranche");
+  const gestes = [["fait", "✓ C’est envoyé", "fini"],
+                  ["plus_tard", "⧖ Plus tard", ""]];
+  if (P.pile === "relancer") gestes.push(["non", "✕ Ne plus relancer", ""]);
+  gestes.forEach(([motif, mot, cls]) => {
+    const b = neud("button", cls, mot);
+    b.type = "button";
+    b.addEventListener("click", () => trancher(it, motif, b, g));
+    t.appendChild(b);
+  });
+  f.appendChild(t);
+  f.appendChild(neud("p", "avert",
+    "Relisez avant d’envoyer. Rien ne part d’ici : c’est vous qui appuyez."));
+
+  setTimeout(() => Reform.brancher(f), 0);
+  return f;
+}
+
+async function trancher(it, motif, bouton, gestes){
+  bouton.disabled = true;
+  try {
+    /* « C'est envoye » veut dire deux choses : le rappel est traite, et le
+       club a recu quelque chose. La fiche doit le savoir, sinon on le
+       relance dans quinze jours. Sauf si un bouton d'envoi l'a deja note. */
+    if (motif === "fait" && it.club_id
+        && !(gestes && gestes.querySelector(".env-rang[data-parti]"))) {
+      const corps = (($("#mot-rep") || {}).value || "").trim();
+      if (corps) {
+        await fetch("/api/envoyer/note", {method: "POST",
+          headers: {"Content-Type": "application/json"},
+          body: JSON.stringify({club_id: it.club_id,
+            canal: it.mail ? "mail" : "whatsapp", a: it.mail || it.tel || "",
+            objet: it.objet || "", corps: corps})}).catch(() => {});
+      }
+    }
+    const r = await fetch("/api/repondre/fait", {method: "POST",
+      headers: {"Content-Type": "application/json"},
+      body: JSON.stringify({cle: it.cle, motif: motif})});
+    const d = await r.json();
+    if (!r.ok) throw new Error(d.error || "refus");
+    P.faites.push(it.cle);
+    const l = liste();
+    const i = l.indexOf(it);
+    if (i >= 0) l.splice(i, 1);
+    if (P.i >= l.length) P.i = Math.max(0, l.length - 1);
+    toast(motif === "non" ? "Rappel annulé"
+          : motif === "plus_tard" ? "Repoussé de deux semaines" : "Traité");
+    majEntete();
+    peindre();
+  } catch (e) {
+    bouton.disabled = false;
+    toast("Impossible : " + (e.message || ""));
+  }
+}
+
+function majEntete(){
+  const a = P.attendent.length, r = P.relancer.length;
+  $("#chapeau").innerHTML = (a || r)
+    ? "<b>" + (a + r) + "</b> dossiers où la parole est à vous."
+    : "Rien n’attend de réponse. Tout est à jour.";
+  const piles = [...document.querySelectorAll(".pile b")];
+  if (piles[0]) piles[0].textContent = String(a);
+  if (piles[1]) piles[1].textContent = String(r);
+}
+
+charger();
+</script>
+<script src="/reform.js"></script>
+<script src="/envoyer.js"></script>
+<script src="/nav.js"></script>
+<script src="/bitchat.js"></script>
+</body>
+</html>

@@ -1,0 +1,278 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Studio — booker les clubs</title>
+<style>
+
+/* La page des semaines creuses. Meme langage visuel que le Reperage : c'est
+   l'ecran dont Julien se sert, et on ne lui demande pas d'en apprendre un
+   deuxieme. Elle vit a part, pour ne rien encombrer. */
+:root{
+  --ground:#F2F5F8; --card:#FFFFFF; --sunk:#EDF1F6;
+  --ink:#0F1621; --ink-2:#2C3845; --ink-3:#5D6975;
+  --line:#DCE3EB; --line-soft:#E7ECF2;
+  --blue:#0A6CF0; --blue-ink:#FFFFFF; --blue-soft:#E8F1FE;
+  --green:#0C9A6C; --green-soft:#E0F5EE;
+  --amber:#AD6200; --amber-soft:#FBF1E0;
+  --red:#DC2626; --red-soft:#FDECEC;
+  --lift:0 1px 2px rgba(15,22,33,.05), 0 12px 32px -20px rgba(15,22,33,.26);
+}
+@media (prefers-color-scheme:dark){
+  :root{
+    --ground:#0D1117; --card:#151B23; --sunk:#1E2630;
+    --ink:#E6EDF3; --ink-2:#C3CEDA; --ink-3:#8B97A4;
+    --line:#2A333F; --line-soft:#232C36;
+    --blue:#4C9AFF; --blue-ink:#FFFFFF; --blue-soft:#102642;
+    --green:#3FD68C; --green-soft:#0E2E22;
+    --amber:#E8B44B; --amber-soft:#2F2611;
+    --red:#FF7B72; --red-soft:#331F1D;
+    --lift:0 1px 2px rgba(0,0,0,.5), 0 14px 36px -20px rgba(0,0,0,.9);
+  }
+}
+*{box-sizing:border-box}
+body{margin:0; background:var(--ground); color:var(--ink);
+  font-family:-apple-system,BlinkMacSystemFont,"SF Pro Text","Helvetica Neue",Arial,sans-serif;
+  font-size:17px; line-height:1.47; -webkit-font-smoothing:antialiased}
+.wrap{max-width:960px; margin:0 auto; padding:0 24px 80px}
+
+header{display:flex; align-items:center; gap:14px; padding:18px 0 0; flex-wrap:wrap}
+.marque{font-size:13px; letter-spacing:.05em; text-transform:uppercase;
+  color:var(--ink-3); font-weight:600}
+.switch{margin-left:auto; text-decoration:none; font-size:14px; font-weight:500;
+  color:var(--ink-2); background:var(--sunk); border-radius:100px;
+  padding:7px 14px; white-space:nowrap}
+.switch:hover{background:var(--line-soft); color:var(--ink)}
+.switch + .switch{margin-left:8px}
+
+h1{font-size:30px; line-height:1.18; letter-spacing:-.02em; font-weight:650;
+  margin:34px 0 6px}
+.chapeau{margin:0 0 4px; color:var(--ink-2); font-size:16px}
+.chapeau b{color:var(--ink); font-weight:650}
+.source{margin:6px 0 0; font-size:13.5px; color:var(--ink-3)}
+.source .relire{font:inherit; font-size:13.5px; background:none; border:0; padding:0;
+  color:var(--blue); text-decoration:underline; text-underline-offset:3px; cursor:pointer}
+.source .relire[disabled]{color:var(--ink-3); cursor:default; text-decoration:none}
+
+/* La bande des semaines : une tuile par semaine, l'etat se lit a la couleur. */
+.bande{display:flex; gap:9px; flex-wrap:wrap; margin:26px 0 0}
+.sem{display:flex; flex-direction:column; align-items:flex-start; gap:1px;
+  min-width:128px; padding:11px 15px 10px; border-radius:16px; font:inherit;
+  text-align:left; cursor:pointer; background:var(--sunk); color:var(--ink-2);
+  border:1.5px solid transparent; transition:border-color .18s, background .18s}
+.sem:hover{background:var(--line-soft)}
+.sem .num{font-size:21px; font-weight:650; letter-spacing:-.02em; line-height:1.1;
+  font-variant-numeric:tabular-nums; color:var(--ink)}
+.sem .quand{font-size:12.5px; color:var(--ink-3); white-space:nowrap}
+.sem .dit{font-size:13px; font-weight:600; white-space:nowrap; margin-top:3px}
+.sem.on{border-color:currentColor}
+.sem.vide{color:var(--red)} .sem.vide.on{background:var(--red-soft)}
+.sem.we_libre{color:var(--amber)} .sem.we_libre.on{background:var(--amber-soft)}
+.sem.leger{color:var(--blue)} .sem.leger.on{background:var(--blue-soft)}
+.sem.plein{color:var(--green)} .sem.plein.on{background:var(--green-soft)}
+.sem.plein .dit{opacity:.85}
+
+/* Le detail d'une semaine. */
+.detail{margin-top:30px}
+.titre-sem{display:flex; align-items:baseline; gap:12px; flex-wrap:wrap;
+  margin:0 0 4px; font-size:23px; font-weight:650; letter-spacing:-.015em}
+.titre-sem .etat{font-size:14px; font-weight:650; border-radius:100px;
+  padding:5px 13px; white-space:nowrap}
+.etat.vide{background:var(--red-soft); color:var(--red)}
+.etat.we_libre{background:var(--amber-soft); color:var(--amber)}
+.etat.leger{background:var(--blue-soft); color:var(--blue)}
+.etat.plein{background:var(--green-soft); color:var(--green)}
+
+h2{font-size:13px; text-transform:uppercase; letter-spacing:.06em;
+  color:var(--ink-3); font-weight:650; margin:26px 0 10px}
+
+.cale{display:flex; flex-direction:column; gap:7px; margin:0; padding:0;
+  list-style:none}
+.cale li{display:flex; gap:12px; align-items:baseline; background:var(--sunk);
+  border-radius:12px; padding:11px 15px; font-size:15px}
+.cale .j{font-weight:650; font-variant-numeric:tabular-nums; white-space:nowrap;
+  min-width:96px}
+.cale li.we .j{color:var(--green)}
+.cale .we-dit{margin-left:auto; font-size:12.5px; color:var(--ink-3);
+  white-space:nowrap}
+
+.vide-dit{margin:0; padding:16px 18px; border-radius:14px; background:var(--sunk);
+  color:var(--ink-2); font-size:15px}
+
+/* Les pistes : les memes pavés que sur le Reperage, pour se lire sans lire. */
+.pistes{display:grid; grid-template-columns:repeat(auto-fill, minmax(420px, 1fr));
+  gap:12px; align-items:start}
+@media (max-width:900px){ .pistes{grid-template-columns:1fr} }
+.piste{background:var(--card); border:1px solid var(--line-soft);
+  border-radius:18px; box-shadow:var(--lift); overflow:hidden}
+.piste-corps{padding:17px 18px 16px}
+.p-nom{font-size:18px; font-weight:650; letter-spacing:-.012em; line-height:1.26;
+  display:flex; gap:9px; align-items:baseline}
+.p-ou{font-size:14.5px; color:var(--ink-2); margin-top:4px}
+.p-faits{display:flex; gap:8px; flex-wrap:wrap; align-items:center; margin-top:13px}
+.pave{display:inline-flex; align-items:baseline; gap:8px;
+  font-variant-numeric:tabular-nums; line-height:1.15}
+.pave.date{font-size:17px; font-weight:650; letter-spacing:-.01em;
+  background:var(--sunk); border-radius:100px; padding:8px 15px;
+  border:1.5px solid transparent; white-space:nowrap}
+.pave.date.we{border-color:var(--green); color:var(--green)}
+.pave.route{background:var(--sunk); border-radius:13px; padding:9px 13px}
+.pave.route b{font-size:19px; font-weight:650; letter-spacing:-.02em; color:var(--ink)}
+.pave.route i{font-style:normal; font-size:13px; color:var(--ink-3)}
+/* Le nombre d'equipes dit ce que la date rapportera : le meme lisere irise
+   que sur le Reperage, et rien d'autre a l'ecran ne lui ressemble. */
+.pave.equipes{border-radius:13px; padding:9px 13px; border:2px solid transparent;
+  background-image:linear-gradient(var(--sunk),var(--sunk)),
+    conic-gradient(from var(--tour,0deg),#ff5f6d,#ffc371,#7ee8fa,#a06bff,#ff5f6d);
+  background-origin:border-box; background-clip:padding-box,border-box;
+  animation:holo 7s linear infinite}
+.pave.equipes b{font-size:20px; font-weight:650; letter-spacing:-.02em; color:var(--ink)}
+.pave.equipes i{font-style:normal; font-size:13px; color:var(--ink-3)}
+@property --tour{syntax:"<angle>"; inherits:false; initial-value:0deg}
+@keyframes holo{to{--tour:360deg}}
+@media (prefers-reduced-motion:reduce){ .pave.equipes{animation:none} }
+
+.etiqs{display:flex; gap:6px; flex-wrap:wrap; margin-top:11px}
+.etiq{font-size:12.5px; padding:4px 11px; border-radius:100px;
+  background:var(--sunk); color:var(--ink-2)}
+.etiq.pris{background:var(--amber-soft); color:var(--amber); font-weight:600}
+.etiq.ecarte{background:var(--red-soft); color:var(--red); font-weight:600}
+
+.p-barre{display:flex; gap:8px; flex-wrap:wrap; padding:0 18px 16px}
+button{font:inherit; cursor:pointer; border-radius:12px; border:1px solid var(--line);
+  background:var(--sunk); color:var(--ink); padding:10px 16px; font-size:14.5px;
+  font-weight:550}
+button:hover{background:var(--line-soft)}
+button.primaire{background:var(--green); border-color:var(--green); color:#fff}
+button.primaire:hover{filter:brightness(1.1)}
+/* WhatsApp sur une ligne fixe : le bouton reste la — un commerce peut avoir
+   branche WhatsApp Business sur son 04 — mais il cesse de se presenter comme
+   le bon geste, et c'est le mail qui passe en vert a sa place. */
+button.fixe{background:#fdf6e9; border-color:#e0cfae; color:#6b4f21; font-weight:500}
+@media (prefers-color-scheme:dark){
+  :root:not([data-theme="light"]) button.fixe{
+    background:#332c24; border-color:#574634; color:#d8c3a0}
+}
+button.bleu{background:var(--blue); border-color:var(--blue); color:#fff}
+button.bleu:hover{filter:brightness(1.1)}
+button[disabled]{opacity:.5; cursor:default}
+
+.mot{border-top:1px solid var(--line-soft); padding:16px 18px 18px}
+.mot textarea{width:100%; font:inherit; font-size:14.5px; line-height:1.55;
+  padding:13px 15px; border-radius:12px; border:1px solid var(--line);
+  background:var(--sunk); color:var(--ink); resize:vertical; min-height:190px}
+.mot .gestes{display:flex; gap:8px; flex-wrap:wrap; margin-top:10px; align-items:center}
+.mot .avert{margin:9px 0 0; font-size:13px; color:var(--ink-3)}
+.mot .coller{display:flex; gap:8px; margin-top:10px; align-items:center; flex-wrap:wrap}
+.mot .coller input{flex:1 1 240px; min-width:0; font:inherit; font-size:15px;
+  padding:10px 14px; border-radius:12px; border:1px solid var(--line);
+  background:var(--sunk); color:var(--ink)}
+
+/* Les jours ouvrables libres : des jetons, pas des cartes — ce ne sont pas
+   des pistes, c'est l'etat de la semaine. Le mercredi se detache : en France
+   c'est le jour ou les enfants s'entrainent, donc le plus facile a vendre. */
+/* Le monde attendu. Deux tons seulement : « du monde » et « pas mal » —
+   au-dela on ferait semblant de connaitre un chiffre qu'on n'a pas. */
+.pave.monde{border-radius:13px; padding:9px 13px; display:inline-flex;
+  align-items:baseline; gap:8px; background:var(--green-soft); color:var(--green)}
+.pave.monde b{font-size:15px; font-weight:650; letter-spacing:-.01em}
+.pave.monde i{font-style:normal; font-size:12.5px; opacity:.85}
+.pave.monde.beaucoup{background:var(--blue-soft); color:var(--blue)}
+
+.jours{display:flex; gap:8px; flex-wrap:wrap; margin:0 0 12px}
+.jour{display:inline-flex; align-items:baseline; gap:8px; padding:9px 15px;
+  border-radius:100px; background:var(--sunk); font-size:14.5px}
+.jour b{font-weight:650; text-transform:capitalize}
+.jour i{font-style:normal; font-size:13px; color:var(--ink-3)}
+.jour.mercredi{background:var(--green-soft); color:var(--green)}
+.jour.mercredi i{color:inherit; opacity:.8}
+.jour em{font-style:normal; font-size:12.5px; font-weight:600; opacity:.9}
+.jours-dit{margin:0 0 16px; font-size:14.5px; color:var(--ink-2); max-width:70ch}
+.jours-dit.petit{margin:-4px 0 12px; font-size:14px; color:var(--ink-3)}
+h2.sous-tas{margin-top:28px}
+.etiq.animaux{background:var(--amber-soft); color:var(--amber); font-weight:600}
+.piste.club .p-nom{font-size:17px}
+.etiq.ok{background:var(--green-soft); color:var(--green); font-weight:600}
+
+.toast{position:fixed; left:50%; bottom:28px; transform:translateX(-50%);
+  background:var(--ink); color:var(--ground); padding:12px 20px; border-radius:100px;
+  font-size:15px; box-shadow:var(--lift); z-index:50}
+.toast[hidden]{display:none}
+.souci{margin-top:20px; padding:16px 18px; border-radius:14px;
+  background:var(--red-soft); color:var(--red); font-size:15px}
+
+
+/* ---- propre a la page studio ---- */
+.club-nom{font-size:18px; font-weight:650; letter-spacing:-.012em; line-height:1.26}
+.club-ou{font-size:14.5px; color:var(--ink-2); margin-top:4px}
+.pourquoi{margin:11px 0 0; font-size:14px; color:var(--ink-3)}
+.bandeau-plaquette{display:flex; align-items:center; gap:16px; flex-wrap:wrap;
+  background:var(--card); border:1px solid var(--line-soft); border-radius:18px;
+  padding:16px 18px; box-shadow:var(--lift); margin:24px 0 0}
+.bandeau-plaquette b{font-size:15.5px; font-weight:650}
+.bandeau-plaquette .mot{margin:0; font-size:14px; color:var(--ink-2); flex:1 1 300px;
+  border:0; padding:0}
+.vignettes{display:flex; gap:6px; flex-wrap:wrap; margin-top:10px}
+/* Les trois gestes qui vident la liste : discrets, a droite, jamais au meme
+   niveau que « Voir le message » qui est le geste utile. */
+.ecarts{display:inline-flex; gap:6px; margin-left:auto; flex-wrap:wrap}
+.ecarts .ecart{font-size:13px; font-weight:500; padding:8px 12px; border-radius:10px;
+  background:none; border:1px solid var(--line-soft); color:var(--ink-3)}
+.ecarts .ecart:hover{background:var(--sunk); color:var(--ink); border-color:var(--line)}
+.piste.part{opacity:0; transform:translateY(-6px); transition:opacity .2s, transform .2s}
+#chapeau .remettre{font:inherit; font-size:14px; background:none; border:0; padding:0;
+  color:var(--blue); text-decoration:underline; text-underline-offset:3px; cursor:pointer}
+.p-barre{align-items:center}
+.vignettes img{width:58px; height:58px; object-fit:cover; border-radius:10px;
+  border:1px solid var(--line-soft)}
+</style>
+<link rel="stylesheet" href="/nav.css">
+
+<script>
+  // Le theme choisi en bas du menu vaut pour tous les ecrans, pas seulement
+  // la plateforme. Pose avant tout rendu, sinon la page clignote.
+  try {
+    var t = localStorage.getItem('theme');
+    if (t === 'dark' || t === 'light') document.documentElement.dataset.theme = t;
+  } catch (e) {}
+</script>
+<link rel="stylesheet" href="/bitchat.css">
+</head>
+<body>
+<div class="wrap">
+
+  <header>
+    <span class="marque">SnapActions</span>
+  </header>
+
+  <h1>Studio — booker les clubs</h1>
+  <p class="chapeau" id="chapeau">Chargement…</p>
+  <p class="source">Les tournois se vendent le week-end ; le studio se vend en
+    semaine, aux mêmes familles. Ici, pas de dates : des clubs à appeler, les
+    plus faciles d'abord.</p>
+
+  <div class="bandeau-plaquette">
+    <div>
+      <b>La plaquette studio</b>
+      <div class="vignettes" id="vignettes"></div>
+    </div>
+    <p class="mot">Un lien WhatsApp ne transporte que du texte. Le bouton met le
+      PDF dans le presse-papiers : vous collez le message, puis la plaquette.
+      Deux ⌘V, sans passer par le Finder.</p>
+    <button class="primaire" id="copierPlaquette" type="button">Copier la plaquette</button>
+  </div>
+
+  <div class="bande" id="tiroirs"></div>
+  <div class="detail" id="liste"></div>
+  <div class="souci" id="souci" hidden></div>
+
+</div>
+<div class="toast" id="toast" hidden></div>
+<script src="/envoyer.js"></script>
+<script src="/studio.js"></script>
+<script src="/reform.js"></script>
+<script src="/nav.js"></script>
+<script src="/bitchat.js"></script>
+</body>
+</html>

@@ -1,0 +1,799 @@
+/* ---------------------------------------------------------------------------
+   Le theme bitchat : fond noir, texte vert, tout en chasse fixe
+   ---------------------------------------------------------------------------
+   Charge en DERNIER sur chaque page, apres app.css, nav.css, cartes.css et le
+   <style> de la page. Il ne retire rien : il redefinit les deux jeux de
+   variables (celui de la plateforme, --bg/--panel/--accent…, et celui des
+   ecrans separes, --ground/--card/--blue…), puis reprend une a une les
+   couleurs ecrites en dur — les gestes en degrade, les teintes par
+   categorie, le blanc pose sur un aplat de couleur.
+
+   Les valeurs sont celles du theme « matrix » de bitchat (Theme.swift,
+   ChatMessageFormatter.swift) : le vert systeme d'Apple en sombre (#32D74B,
+   et non un #00FF00 de terminal, trop criard), #008000 en clair, le
+   secondaire a 80 % de ce vert, des separateurs NEUTRES (blanc a 12 % sur
+   noir, noir a 8 % sur blanc), les liens en bleu #007AFF, l'alerte en
+   rouge #BF1A1A. Le texte courant fait 14 px, le titre 18 px medium.
+
+   Le vert pour le texte et le geste principal (envoyer), le bleu de bitchat
+   pour ce qui ouvre ou joint (liens, pieces jointes, recherches, mail,
+   appel, confirmations), le gris pour les gestes discrets. L'orange garde
+   l'alerte et ce qui attend une reponse, le rouge ce qui est perdu ou
+   urgent, le violet le conflit d'agenda, et chaque contact a sa couleur.
+   Deux exceptions voulues : le nombre d'equipes en holo, la route en cyan.
+
+   Pour revenir a l'ancien theme : retirer la ligne
+   <link rel="stylesheet" href="/bitchat.css"> de chaque page. La copie
+   d'avant est dans data/static-avant-bitchat-20261023-1851.
+   --------------------------------------------------------------------------- */
+
+/* Clair — fond blanc, vert #008000. */
+:root{
+  /* « Apple Color Emoji » en dernier, et ce n'est pas décoratif : dans une
+     pile uniquement monospace, Chrome ne retombe pas toujours sur la police
+     emoji du système et dessine la case hexadécimale à la place — c'est ce
+     qu'on voyait sur « 🏍️ Autos & motos ». Nommer la police emoji à la fin
+     de la pile lui donne où aller. */
+  --mono:"SF Mono",ui-monospace,SFMono-Regular,Menlo,Monaco,monospace,
+         "Apple Color Emoji","Segoe UI Emoji","Noto Color Emoji";
+  --bg:#FFFFFF; --ground:#FFFFFF; --panel:#FFFFFF; --card:#FFFFFF; --field:#FFFFFF;
+  --sunk:#F5F5F5; --line:#EBEBEB; --line-soft:#F2F2F2; --line-strong:#99CC99;
+  --ink:#008000; --ink-2:#339933; --ink-3:#6E6E73; --mute:#6E6E73; --muted:#6E6E73;
+  --fg:#008000; --lien:#007AFF;
+  --accent:#008000; --accent-soft:#EBF5EB; --on-accent:#FFFFFF; --accent-vif:#006600;
+  --green:#008000; --green-soft:#EBF5EB;
+  --blue:#0066D6; --blue-ink:#FFFFFF; --blue-soft:#E8F1FD;
+  --warn:#C93400; --warn-soft:#FBEDE3; --on-warn:#FFFFFF;
+  --amber:#C93400; --amber-soft:#FBEDE3;
+  --violet:#8A3FB8; --violet-soft:#F3E9FA;
+  --danger:#BF1A1A; --danger-soft:#FCEBE9; --on-danger:#FFFFFF;
+  --red:#BF1A1A; --red-soft:#FCEBE9;
+  --shadow:0 0 0 1px #EBEBEB, 0 18px 50px rgba(0,0,0,.12);
+  --lift:none;
+  --radius:4px;
+  color-scheme:light;
+}
+/* Sombre — fond noir, vert terminal. Meme double garde que app.css : le
+   systeme en sombre, sauf si le bouton impose le clair. */
+@media (prefers-color-scheme:dark){
+  :root:not([data-theme="light"]){
+    --bg:#000000; --ground:#000000; --panel:#000000; --card:#0A0A0A; --field:#000000;
+    --sunk:#141414; --line:#1F1F1F; --line-soft:#141414; --line-strong:#176122;
+    --ink:#32D74B; --ink-2:#28AC3C; --ink-3:#8E8E93; --mute:#8E8E93; --muted:#8E8E93;
+    --fg:#32D74B; --lien:#0A84FF;
+    --accent:#32D74B; --accent-soft:#061A09; --on-accent:#000000; --accent-vif:#5EE173;
+    --green:#32D74B; --green-soft:#061A09;
+    --blue:#0A84FF; --blue-ink:#000000; --blue-soft:#04192F;
+    --warn:#FF9F0A; --warn-soft:#2B1B00; --on-warn:#000000;
+    --amber:#FF9F0A; --amber-soft:#2B1B00;
+    --violet:#BF5AF2; --violet-soft:#24102E;
+    --danger:#FF453A; --danger-soft:#2E100E; --on-danger:#000000;
+    --red:#FF453A; --red-soft:#2E100E;
+    --shadow:0 0 0 1px #1F1F1F, 0 18px 50px rgba(0,0,0,.85);
+    --lift:none;
+    color-scheme:dark;
+  }
+}
+:root[data-theme="dark"]{
+  --bg:#000000; --ground:#000000; --panel:#000000; --card:#0A0A0A; --field:#000000;
+  --sunk:#141414; --line:#1F1F1F; --line-soft:#141414; --line-strong:#176122;
+  --ink:#32D74B; --ink-2:#28AC3C; --ink-3:#8E8E93; --mute:#8E8E93; --muted:#8E8E93;
+  --fg:#32D74B; --lien:#0A84FF;
+  --accent:#32D74B; --accent-soft:#061A09; --on-accent:#000000; --accent-vif:#5EE173;
+  --green:#32D74B; --green-soft:#061A09;
+  --blue:#0A84FF; --blue-ink:#000000; --blue-soft:#04192F;
+  --warn:#FF9F0A; --warn-soft:#2B1B00; --on-warn:#000000;
+  --amber:#FF9F0A; --amber-soft:#2B1B00;
+  --violet:#BF5AF2; --violet-soft:#24102E;
+  --danger:#FF453A; --danger-soft:#2E100E; --on-danger:#000000;
+  --red:#FF453A; --red-soft:#2E100E;
+  --shadow:0 0 0 1px #1F1F1F, 0 18px 50px rgba(0,0,0,.85);
+  --lift:none;
+  color-scheme:dark;
+}
+/* Le clair impose par le bouton sur un Mac en sombre : sans cette regle, le
+   bloc sombre des ecrans separes (« @media dark { :root } ») reprenait la main. */
+:root[data-theme="light"]{
+  --bg:#FFFFFF; --ground:#FFFFFF; --panel:#FFFFFF; --card:#FFFFFF; --field:#FFFFFF;
+  --sunk:#F5F5F5; --line:#EBEBEB; --line-soft:#F2F2F2; --line-strong:#99CC99;
+  --ink:#008000; --ink-2:#339933; --ink-3:#6E6E73; --mute:#6E6E73; --muted:#6E6E73;
+  --fg:#008000; --lien:#007AFF;
+  --accent:#008000; --accent-soft:#EBF5EB; --on-accent:#FFFFFF; --accent-vif:#006600;
+  --green:#008000; --green-soft:#EBF5EB;
+  --blue:#0066D6; --blue-ink:#FFFFFF; --blue-soft:#E8F1FD;
+  --warn:#C93400; --warn-soft:#FBEDE3; --on-warn:#FFFFFF;
+  --amber:#C93400; --amber-soft:#FBEDE3;
+  --violet:#8A3FB8; --violet-soft:#F3E9FA;
+  --danger:#BF1A1A; --danger-soft:#FCEBE9; --on-danger:#FFFFFF;
+  --red:#BF1A1A; --red-soft:#FCEBE9;
+  --shadow:0 0 0 1px #EBEBEB, 0 18px 50px rgba(0,0,0,.12);
+  --lift:none;
+  color-scheme:light;
+}
+
+/* ---- La base : chasse fixe partout ------------------------------------- */
+html{background:var(--bg); scrollbar-color:var(--line-strong) var(--bg)}
+/* 14 px, la taille des messages de bitchat. Les ecrans separes etaient a
+   17 px : en chasse fixe, c'etait gros et large. */
+body{background:var(--bg); color:var(--ink); font-family:var(--mono);
+  font-size:14px; line-height:1.5; -webkit-font-smoothing:auto}
+button, input, select, textarea, .btn{font-family:var(--mono)}
+a{color:var(--lien)}
+a:hover{color:var(--lien); text-decoration:underline}
+::selection{background:var(--accent); color:var(--on-accent)}
+::placeholder{color:var(--ink-3); opacity:1}
+input, textarea{caret-color:var(--accent)}
+input[type="checkbox"], input[type="radio"]{accent-color:var(--accent)}
+:focus-visible{outline:2px solid var(--accent); outline-offset:2px}
+input:focus, select:focus, textarea:focus{outline:2px solid var(--accent-soft);
+  border-color:var(--accent)}
+
+/* Des angles nets : ce qui etait en pilule ou en galet passe a 4 px. */
+button, .btn, .geste, input, select, textarea{border-radius:4px !important}
+.carte, .zone, .lu, .item, .kpi, .banner, .memo, .memo-carte, .acte, .carte-club,
+.dossier, .part, .ia, .lot, .trouve, .resultat > *, .modal > *, .pave, .rep,
+.f-date, .f-equipes, .f-dist, .chip, .etiq, .sous-liste, .toast{border-radius:6px !important}
+
+/* Les titres de page : « Répondre » devient « /répondre », comme une commande. */
+.wrap > h1{font-family:var(--mono); font-size:18px; font-weight:500; letter-spacing:0;
+  line-height:1.3; text-transform:lowercase}
+.wrap > h1::before{content:"/"; color:var(--line-strong)}
+.zone-head h2{font-size:16px; font-weight:700; letter-spacing:0}
+.marque{font-family:var(--mono); font-weight:500; color:var(--ink);
+  text-transform:none; letter-spacing:0}
+.marque::after{content:"/"; color:var(--line-strong)}
+
+.modal{background:rgba(0,0,0,.72)}
+/* Le bandeau de confirmation : noir cerne de vert, comme une ligne systeme.
+   Vide, il ne se montre pas — sur le Reperage il depassait de quelques pixels
+   sous le bas de l'ecran, ce qui se voyait a peine avant le vert vif. */
+.toast{background:var(--bg) !important; color:var(--ink) !important;
+  border:1px solid var(--accent); box-shadow:var(--shadow)}
+.toast.bad{border-color:var(--danger); color:var(--danger) !important}
+.toast:empty{visibility:hidden}
+
+/* ---- Le menu : des commandes et des canaux ------------------------------ */
+/* Les ecrans s'ecrivent « /repérage », les onglets « #clubs » : ce sont deja
+   deux familles dans nav.js (data-section), on leur donne leur signe. Le
+   pictogramme cede sa place au signe ; l'entree ouverte prend l'invite « > ». */
+/* La chasse fixe est plus large : a 196 px, « semaines à remplir » et
+   « déposer un flyer » etaient coupes. */
+:root{--menu-large:236px}
+#menu{font-family:var(--mono); font-size:14px; background:var(--bg);
+  border-right-color:var(--line); border-bottom-color:var(--line)}
+#menu .marque-menu{text-transform:none; gap:9px}
+#menu .marque-menu::before{content:none}
+#menu .marque-menu b{font-size:18px; font-weight:500; letter-spacing:0; color:var(--ink)}
+#menu .marque-menu b::after{content:"/"; color:var(--line-strong)}
+#menu .marque-menu img{height:28px}
+#menu h3{font-size:12px; font-weight:400; letter-spacing:0; text-transform:lowercase;
+  color:var(--ink-3)}
+#menu h3::before{content:"// "}
+#menu a, #menu button{gap:0; border-left:0; border-radius:4px; font-weight:400;
+  color:var(--ink-2); text-transform:lowercase}
+#menu a:hover, #menu button:hover{background:var(--sunk); color:var(--ink)}
+#menu .on, #menu .on:hover{background:var(--accent-soft); color:var(--ink); font-weight:500}
+#menu .m-ico{display:none}
+#menu a::before, #menu button::before{content:""; flex:0 0 2ch; width:2ch}
+#menu .on::before{content:">"; font-weight:500}
+#menu #themeBtn::before{content:none}
+#menu .m-mot::before{color:var(--line-strong)}
+#menu .on .m-mot::before{color:inherit}
+#menu [data-section="ecrans"] .m-mot::before,
+#menu [data-tab="reglages"] .m-mot::before{content:"/"}
+#menu [data-section="suivi"] .m-mot::before{content:"#"}
+#menu a[href="/flyer.html"] .m-mot::before{content:"+ "}
+#menu #menuSyncWa .m-mot::before{content:"~ "}
+/* Le compteur : en trait, sauf « Répondre », en aplat orange — c'est le seul
+   chiffre qui represente quelqu'un qui attend. */
+#menu .m-n{background:transparent; border:1px solid var(--line-strong);
+  color:var(--ink); border-radius:3px}
+#menu .on .m-n{background:transparent; color:var(--ink)}
+#menu [data-badge="repondre"]{background:var(--warn); border-color:var(--warn);
+  color:var(--on-warn)}
+#menu .on [data-badge="repondre"]{background:var(--warn); color:var(--on-warn)}
+#menu #themeBtn{border:1px solid var(--line) !important; justify-content:center}
+/* Hors de la plateforme, app.js n'est pas la pour l'etiqueter : vide, il
+   n'etait qu'un cadre sans rien dedans. */
+#menu #themeBtn:empty{display:none}
+
+/* ---- Les gestes : aplat vert pour le geste maitre, trait pour le reste --- */
+.geste{background:transparent !important; border:1px solid var(--line-strong) !important;
+  color:var(--ink) !important; box-shadow:none !important; letter-spacing:0 !important;
+  filter:none}
+.geste:hover{filter:none !important; background:var(--sunk) !important;
+  border-color:var(--accent) !important}
+.geste.maitre, .geste.maitre.ouvre{
+  background:var(--accent) !important; border-color:var(--accent) !important;
+  color:var(--on-accent) !important; font-weight:600 !important}
+.geste.maitre:hover, .geste.maitre.ouvre:hover{background:var(--accent-vif) !important;
+  border-color:var(--accent-vif) !important}
+/* Le bleu de bitchat (ses liens, ses accuses de lecture) pour ce qui ouvre
+   ou joint quelque chose : les pieces jointes, les recherches, l'appel. Le
+   mail, quand il est le bon geste, prend l'aplat bleu : un autre canal que
+   WhatsApp, et ca se voit avant de lire. Les gestes discrets passent au gris.
+   Tout etait vert : on ne distinguait plus l'envoi du reste. */
+.geste.piece, .geste.trouver, .geste.appel{border-color:var(--blue) !important;
+  color:var(--blue) !important}
+.geste.piece:hover, .geste.trouver:hover, .geste.appel:hover{
+  background:var(--blue-soft) !important; border-color:var(--blue) !important}
+.geste.maitre.mail, .geste.maitre.appel{background:var(--blue) !important;
+  border-color:var(--blue) !important; color:var(--blue-ink) !important;
+  font-weight:600 !important}
+.geste.maitre.mail:hover, .geste.maitre.appel:hover{background:var(--blue) !important;
+  filter:brightness(1.12) !important}
+.geste.discret{border-color:var(--line) !important; color:var(--ink-3) !important}
+.geste.discret:hover{color:var(--ink-2) !important; border-color:var(--line-strong) !important}
+/* WhatsApp sur un fixe : le geste reste, mais en pointille et en gris. */
+.geste.fixe, button.fixe{background:transparent !important;
+  border:1px dashed var(--line-strong) !important; color:var(--ink-3) !important}
+
+/* ---- Le blanc pose sur un aplat : il devient noir en sombre -------------- */
+button.primary, .gestes .primaire, .gens .faire .primaire, button.primaire,
+.lot button:not(.plain), .prise button, .causerie .ligne button, .carte-barre .wa,
+.memo-carte .acts .wa, .filtre.on{
+  background:var(--accent) !important; border-color:var(--accent) !important;
+  color:var(--on-accent) !important; font-weight:600}
+button.primary:hover, .gestes .primaire:hover, button.primaire:hover,
+.lot button:not(.plain):hover, .prise button:hover, .causerie .ligne button:hover,
+.carte-barre .wa:hover, .memo-carte .acts .wa:hover{filter:none;
+  background:var(--accent-vif) !important}
+/* L'ancien bleu redevient bleu — celui de bitchat — mais au trait : l'aplat
+   reste au geste vert d'a cote. Meme regle pour les gestes secondaires des
+   brouillons (« C'est envoye », « Ouvrir dans WhatsApp », « Copier ») :
+   ils confirment ou ouvrent, ils n'envoient pas. */
+.gestes .bleu, button.bleu,
+.brouillon .faire button:not(.envoyer):not(.primaire){background:transparent !important;
+  border:1px solid var(--blue) !important; color:var(--blue) !important;
+  font-weight:500}
+.gestes .bleu:hover, button.bleu:hover,
+.brouillon .faire button:not(.envoyer):not(.primaire):hover{filter:none;
+  background:var(--blue-soft) !important}
+/* Sur les fiches de personnes (Rencontres, Partenaires, Relais) : appeler,
+   ecrire un mail, se faire aider ouvrent quelque chose — en bleu ; trier et
+   renommer ne font que ranger — en gris, sauf le tri choisi. */
+.gens .faire a[href^="tel:"], .gens .faire a[href^="mailto:"],
+.gens .faire button:not(.primaire):not(.fixe):not(.envoyer){background:transparent !important;
+  border:1px solid var(--blue) !important; color:var(--blue) !important}
+.gens .faire a[href^="tel:"]:hover, .gens .faire a[href^="mailto:"]:hover,
+.gens .faire button:not(.primaire):not(.fixe):not(.envoyer):hover{background:var(--blue-soft) !important}
+/* Studio et Semaines : « Voir le message » et « Appeler » ouvrent — bleu ;
+   « Contacte / Plus tard / Pas pour moi » rangent — gris. */
+.p-barre > button:not(.primaire){background:transparent !important;
+  border:1px solid var(--blue) !important; color:var(--blue) !important}
+.p-barre > button:not(.primaire):hover{background:var(--blue-soft) !important}
+.tris button:not(.on), .renom button, .p-barre .ecart{background:transparent !important;
+  border:1px solid var(--line) !important; color:var(--ink-3) !important}
+.tris button:not(.on):hover, .renom button:hover, .p-barre .ecart:hover{color:var(--ink-2) !important;
+  border-color:var(--line-strong) !important}
+.brouillon .faire button.envoyer:not(.fait){background:var(--accent) !important;
+  border-color:var(--accent) !important; color:var(--on-accent) !important}
+.toast.bad, #noteDicter.ecoute, .dossier .appel{color:var(--on-danger) !important}
+/* Ses propres messages, dans une conversation : pas de bulle pleine, un cadre. */
+.causerie .dit{background:transparent !important; color:var(--ink) !important;
+  border:1px solid var(--line-strong)}
+.causerie .dit::before{content:"> "; color:var(--line-strong)}
+
+/* ---- Les teintes par categorie : tout repasse au vert -------------------- */
+.acte .blason, .carte-club .blason, .part .rond, .rass-picto,
+.tiroirs button .ico, .tiroirs button.teinte.on .ico{
+  background:var(--sunk) !important; color:var(--ink) !important}
+.tiroirs button.teinte.on{color:var(--ink) !important;
+  background:var(--accent-soft) !important; border-color:var(--accent) !important}
+.tiroirs .t-distance.on, .tiroirs-jour .t-trancher.on, .tiroirs-jour .t-appeler.on{
+  background:var(--green-soft) !important}
+.tiroirs .t-bassins.on, .tiroirs .t-date.on, .tiroirs-jour .t-caler.on{
+  background:var(--amber-soft) !important}
+.tiroirs-jour .t-repondre.on{background:var(--red-soft) !important}
+.tiroirs .t-autos.on{color:var(--violet) !important; background:var(--violet-soft) !important}
+.tiroirs .t-autos:not(.on) .n{color:var(--violet) !important}
+
+/* La chasse fixe prend un cinquieme de place en plus : une date longue
+   (« sam. 14 nov. au dim. 22 nov. J-22 ») sortait de la carte et faisait
+   defiler toute la page de cote. Elle passe a la ligne. */
+.f-date, .acte .rep.date, .ct-reperes .rep{max-width:100%; flex-wrap:wrap;
+  white-space:normal}
+
+/* ---- Les etats : leur fond suit la variable, plus un rgba fige ----------- */
+.f-date.urgent, .acte .rep.date.urgent{background:var(--red-soft)}
+.f-date.bientot, .acte .rep.date.bientot{background:var(--amber-soft)}
+.lu-souci{color:var(--red)}
+
+/* La route (km · minutes) : vert sur fond vert, elle ne ressortait plus de
+   la carte. Elle prend sa couleur a elle, un cyan que rien d'autre n'utilise ;
+   « loin » passe tout entier a l'orange et « hors » au rouge, chiffres
+   compris — le verdict se lit avant meme le mot. */
+:root{--route:#006E9C; --route-soft:#E6F4FA; --route-line:#9CCFE6}
+@media (prefers-color-scheme:dark){
+  :root:not([data-theme="light"]){--route:#4CD3FF; --route-soft:#00202B; --route-line:#0B5068}
+}
+:root[data-theme="dark"]{--route:#4CD3FF; --route-soft:#00202B; --route-line:#0B5068}
+:root[data-theme="light"]{--route:#006E9C; --route-soft:#E6F4FA; --route-line:#9CCFE6}
+
+.f-dist, .acte .rep.route, .ct-reperes .rep.route, .pave.route{--route-c:var(--route);
+  background:var(--route-soft) !important; border:1px solid var(--route-line)}
+.f-dist.loin{--route-c:var(--amber); background:var(--amber-soft) !important;
+  border-color:var(--amber)}
+.f-dist.hors{--route-c:var(--red); background:var(--red-soft) !important;
+  border-color:var(--red)}
+.f-dist .f-km, .f-dist .f-min, .f-dist .f-unite,
+.acte .rep.route b, .ct-reperes .rep.route b, .pave.route b{color:var(--route-c) !important}
+.f-dist .f-min::before{color:var(--route-c); opacity:.6}
+.acte .rep.route i, .ct-reperes .rep.route i, .pave.route i{color:var(--route-c)}
+.f-dist .f-verdict{background:var(--bg) !important; color:var(--route-c) !important;
+  border:1px solid var(--route-c)}
+.f-dist.inconnu .f-km{color:var(--ink-3) !important}
+.chip .x:hover, .carte-x:hover{color:var(--red)}
+.f-fait.pourquoi{background:var(--green-soft) !important;
+  border-color:var(--line-strong) !important; color:var(--ink) !important}
+
+/* Le nombre d'equipes : la seule chose de l'ecran qui ne passe pas au vert,
+   et c'est voulu — il ne doit ressembler a rien d'autre. Le lisere irise
+   d'origine reste ; chaque chiffre prend sa couleur, franche, sur un fond
+   neutre, et le chiffre devient holographique : des teintes voisines sur le
+   cercle (rose, lavande, cyan, menthe, beurre) qui se fondent sans passer
+   par le brun, et un reflet blanc qui balaie le nombre. Un premier degrade,
+   rouge-orange-bleu-violet, salissait le milieu du nombre.
+   En clair, les teintes sont plus soutenues : les pastels ne se lisaient
+   pas sur du blanc, et le reflet y est plus discret. */
+:root{
+  --holo-1:#D61F8F; --holo-2:#7A4DFF; --holo-3:#0089C2; --holo-4:#00A06A;
+  --holo-5:#00A06A; --holo-reflet:rgba(255,255,255,.6);
+  --irise-fond:#FFFFFF; --irise-texte:#3A3A3C;
+}
+@media (prefers-color-scheme:dark){
+  :root:not([data-theme="light"]){
+    --holo-1:#FF6AD5; --holo-2:#A98BFF; --holo-3:#5CE1FF; --holo-4:#7CFFB2;
+    --holo-5:#FFE27A; --holo-reflet:rgba(255,255,255,.9);
+    --irise-fond:#0A0A0A; --irise-texte:#E5E5EA;
+  }
+}
+:root[data-theme="dark"]{
+  --holo-1:#FF6AD5; --holo-2:#A98BFF; --holo-3:#5CE1FF; --holo-4:#7CFFB2;
+  --holo-5:#FFE27A; --holo-reflet:rgba(255,255,255,.9);
+  --irise-fond:#0A0A0A; --irise-texte:#E5E5EA;
+}
+:root[data-theme="light"]{
+  --holo-1:#D61F8F; --holo-2:#7A4DFF; --holo-3:#0089C2; --holo-4:#00A06A;
+  --holo-5:#00A06A; --holo-reflet:rgba(255,255,255,.6);
+  --irise-fond:#FFFFFF; --irise-texte:#3A3A3C;
+}
+/* Le fond : la premiere couche (posee dans le cadre) devient neutre ; la
+   seconde, le lisere qui tourne, est reprise telle qu'a l'origine. */
+.f-equipes.connu, .acte .rep.equipes, .ct-reperes .rep.equipes, .pave.equipes{
+  background-image:linear-gradient(var(--irise-fond), var(--irise-fond)),
+    conic-gradient(from var(--tour, 0deg), #ff5f6d, #ffc371, #7ee8fa,
+                   #a06bff, #ff5f6d) !important}
+.f-equipes.connu .f-nb, .rep.equipes b, .pave.equipes b{
+  background-image:
+    linear-gradient(110deg, transparent 38%, var(--holo-reflet) 50%, transparent 62%),
+    linear-gradient(110deg, var(--holo-1), var(--holo-2), var(--holo-3), var(--holo-4),
+                    var(--holo-5), var(--holo-4), var(--holo-3), var(--holo-2), var(--holo-1));
+  background-size:260% 100%, 400% 100%;
+  background-position:120% 0, 0 0;
+  -webkit-background-clip:text; background-clip:text;
+  color:transparent !important; -webkit-text-fill-color:transparent;
+  animation:holo-chiffre 6s ease-in-out infinite}
+@keyframes holo-chiffre{
+  50%{background-position:-20% 0, 100% 0}
+}
+@media (prefers-reduced-motion:reduce){
+  .f-equipes.connu .f-nb, .rep.equipes b, .pave.equipes b{animation:none}
+}
+.f-equipes.connu .f-unite, .rep.equipes i, .pave.equipes i{color:var(--irise-texte) !important}
+
+/* ---- Les attentes : le sonar de bitchat ----------------------------------
+   Pose par bitchat.js devant tout texte d'attente (« Lecture… »). Le dessin
+   et la cadence sont ceux de MeshRadarView : trois ondes de 1 px qui
+   s'ouvrent depuis le point central en trois secondes, decalees d'une
+   seconde, et s'eteignent en s'elargissant. A 14 px les ondes partent
+   pleines ; en grand, elles gardent l'intensite de bitchat (45 %). */
+bc-sonar{display:inline-flex; flex:0 0 auto; width:14px; height:14px;
+  margin-right:.6em; vertical-align:-2px; --bc-intensite:.9}
+bc-sonar svg{display:block; width:100%; height:100%; overflow:visible}
+.bc-onde{fill:none; stroke:currentColor; stroke-width:1; vector-effect:non-scaling-stroke;
+  transform-box:fill-box; transform-origin:center; opacity:0;
+  animation:bc-onde 3s linear infinite}
+.bc-onde:nth-child(2){animation-delay:-1s}
+.bc-onde:nth-child(3){animation-delay:-2s}
+.bc-point{fill:currentColor; opacity:.9}
+@keyframes bc-onde{
+  from{transform:scale(0); opacity:var(--bc-intensite)}
+  to{transform:scale(1); opacity:0}
+}
+/* Le bouton occupe reste lisible : c'est le sonar qui dit qu'il travaille,
+   pas un voile gris. Son pictogramme cede la place au sonar. */
+.bc-attente{cursor:progress}
+button.bc-attente:disabled, .geste.bc-attente:disabled{opacity:1 !important}
+.bc-attente > .ico{display:none}
+/* Le bloc « … » qui attend sa liste : le grand sonar, seul, au centre —
+   l'ecran vide de bitchat. */
+.chargement.bc-attente{display:flex; justify-content:center; padding:28px 0;
+  font-size:0; color:var(--ink)}
+.chargement > bc-sonar{width:72px; height:72px; margin:0; --bc-intensite:.45}
+.chargement .bc-point{transform-box:fill-box; transform-origin:center; transform:scale(.35)}
+/* ---- Les conversations : une ligne par message, comme bitchat ------------
+   ChatMessageFormatter ecrit « <@pseudo> message » : pas de bulle, le pseudo
+   en tete de ligne, le sien en orange et en gras, celui des autres dans sa
+   couleur. Les etiquettes « Vous / Eux / Lui » deviennent ces pseudos. */
+.bulle, .msg.moi, .msg.lui{background:transparent !important; border:0 !important;
+  border-radius:0 !important; box-shadow:none !important; max-width:none !important;
+  align-self:stretch !important; padding:3px 0 !important; color:var(--ink) !important;
+  font-size:14px !important; line-height:1.5}
+.bulle.moi::before{content:"<@vous> "; color:var(--warn); font-weight:700}
+.bulle.eux::before{content:"<@eux> "; color:var(--ink); font-weight:500}
+/* « eux » ne dit pas qui a ecrit. Quand la carte connait le nom, on le met. */
+.bulle.eux[data-qui]::before{content:"<@" attr(data-qui) "> "}
+.bulle:has(> .qui)::before{content:none}
+.bulle .qui, .msg.moi > b, .msg.lui > b{display:inline; font-size:inherit !important;
+  letter-spacing:0 !important; text-transform:lowercase !important; margin:0 .5ch 0 0;
+  opacity:1 !important}
+.bulle .qui::before, .msg > b::before{content:"<@"}
+.bulle .qui::after, .msg > b::after{content:">"}
+.bulle.moi .qui, .msg.moi > b{color:var(--warn) !important; font-weight:700}
+.bulle.eux .qui, .msg.lui > b{color:var(--ink) !important; font-weight:500}
+
+/* L'heure du message (bitchat.js), en fin de ligne : gris a 70 %, en petit. */
+bc-heure{margin-left:.6ch; font-size:11px; color:var(--ink-3); opacity:.7;
+  white-space:nowrap; font-weight:400}
+
+/* L'etat de nos messages (bitchat.js) : ✓ envoye, ✓✓ bleu lu — DeliveryStatusView. */
+bc-etat{display:inline-flex; align-items:center; gap:0; margin-left:.6ch;
+  vertical-align:-1px; color:var(--ink-2); opacity:.6}
+bc-etat svg{display:block; width:12px; height:12px}
+bc-etat.lu{color:var(--lien); opacity:1; gap:1px}
+bc-etat.lu svg{width:11px; height:11px}
+/* Le message propose, pas encore parti : le rond pointille de bitchat. */
+.propose .titre::before{content:""; flex:0 0 auto; width:9px; height:9px;
+  border:1px dotted currentColor; border-radius:50%; opacity:.7}
+
+/* ---- Le direct : l'evenement du jour pulse, comme LiveVoiceBadge ---------- */
+.bc-direct{display:inline-flex; align-items:center; gap:4px; padding:1px 7px;
+  border-radius:100px; font-weight:700; color:var(--danger) !important;
+  background:color-mix(in srgb, var(--danger) 15%, transparent);
+  animation:bc-pouls .7s ease-in-out infinite alternate}
+.bc-direct::before{content:""; width:6px; height:6px; border-radius:50%;
+  background:currentColor}
+@keyframes bc-pouls{from{opacity:1} to{opacity:.35}}
+
+/* ---- La voix : la dictee en cours montre son onde, comme WaveformView ---- */
+#noteDicter.ecoute{color:var(--danger) !important; border-color:var(--danger) !important;
+  background:color-mix(in srgb, var(--danger) 12%, transparent) !important}
+bc-voix{display:inline-flex; align-items:center; gap:2px; height:12px;
+  margin-left:.6ch; vertical-align:-1px}
+bc-barre{display:block; width:2px; height:100%; border-radius:1px;
+  background:currentColor; transform:scaleY(.3); animation:bc-voix .9s ease-in-out infinite}
+bc-barre:nth-child(2){animation-delay:-.45s}
+bc-barre:nth-child(3){animation-delay:-.15s}
+bc-barre:nth-child(4){animation-delay:-.6s}
+bc-barre:nth-child(5){animation-delay:-.3s}
+@keyframes bc-voix{0%, 100%{transform:scaleY(.3)} 50%{transform:scaleY(1)}}
+
+/* ---- Le Reperage, au plus pres de bitchat ----------------------------------
+   Les tiroirs deviennent une liste de salons, chaque fiche un message de la
+   veille : l'expediteur en tete (« <@veille · …> », dans une couleur a lui,
+   comme un pair de bitchat — posee par bitchat.js), les faits en lignes, les
+   categories entre crochets, les explications en lignes systeme (« * … * »).
+   Les pictogrammes de sport passent au vert, en monochrome. */
+:root{--bc-picto:grayscale(1) sepia(1) hue-rotate(65deg) saturate(3) brightness(.62)}
+@media (prefers-color-scheme:dark){
+  :root:not([data-theme="light"]){--bc-picto:grayscale(1) sepia(1) hue-rotate(65deg) saturate(4) brightness(1.05)}
+}
+:root[data-theme="dark"]{--bc-picto:grayscale(1) sepia(1) hue-rotate(65deg) saturate(4) brightness(1.05)}
+:root[data-theme="light"]{--bc-picto:grayscale(1) sepia(1) hue-rotate(65deg) saturate(3) brightness(.62)}
+
+/* Le titre de zone, comme un salon ; le compte entre parentheses. */
+#zone-net .zone-head h2{text-transform:lowercase}
+#zone-net .zone-head h2::before{content:"## "; color:var(--line-strong)}
+#zone-net .zone-head .count{font-size:12px; color:var(--ink-3)}
+#zone-net .zone-head .count:not(:empty)::before{content:"("}
+#zone-net .zone-head .count:not(:empty)::after{content:")"}
+
+/* Le scanner : une commande, et son radar aux couleurs du theme. */
+#zone-net .scouter{background:transparent; border:1px solid var(--line-strong);
+  padding:7px 16px 7px 10px; gap:10px; font-size:14px; font-weight:600}
+#zone-net .scouter:hover{background:var(--accent-soft); border-color:var(--accent)}
+.scouter-mot{text-transform:lowercase}
+.scouter-mot::before{content:"/"}
+.radar{width:28px; height:30px}
+.radar .ecran{fill:var(--bg)}
+.radar .cadre{stroke:var(--ink); stroke-width:2; opacity:.45}
+.radar .bouton{fill:var(--ink); opacity:.45}
+.radar .grille{stroke:var(--line-strong); opacity:1}
+.radar .croix, .radar .aiguille{stroke:var(--ink)}
+.balai-0, .balai-1{stop-color:var(--ink)}
+
+/* Les explications : des lignes systeme, grises, en italique, entre etoiles. */
+#zone-net .zone-mot:not(:empty), #zone-flyer .zone-mot:not(:empty){
+  font-size:12px; font-style:italic; color:var(--ink-3)}
+#zone-net .zone-mot:not(:empty)::before, #zone-flyer .zone-mot:not(:empty)::before{content:"* "}
+#zone-net .zone-mot:not(:empty)::after, #zone-flyer .zone-mot:not(:empty)::after{content:" *"}
+#zone-net .lien-mot{font-style:italic; color:var(--ink-2)}
+#zone-net .coller-annonces > summary{list-style:none; cursor:pointer;
+  text-transform:lowercase; color:var(--ink-2)}
+#zone-net .coller-annonces > summary::-webkit-details-marker{display:none}
+#zone-net .coller-annonces > summary::before{content:"+ "; color:var(--line-strong)}
+#zone-net .coller-annonces[open] > summary::before{content:"\2212  "}
+#zone-net .groupes-liste .groupe{background:transparent; border:1px solid var(--line);
+  font-size:13px; padding:5px 10px}
+#zone-net .groupes-liste .groupe::before{content:"#"; color:var(--line-strong)}
+
+/* Les tiroirs : une liste de salons. « ⚽ football 86 », le chiffre a la fin. */
+#zone-net .rangee{gap:6px; margin-bottom:16px}
+#zone-net .rangee-titre{font-size:12px; font-weight:400; letter-spacing:0;
+  text-transform:lowercase; color:var(--ink-3); margin:0 0 2px}
+#zone-net .rangee-titre::before{content:"// "}
+#zone-net .tiroirs button{flex-direction:row-reverse; align-items:center; gap:8px;
+  min-width:0; padding:5px 10px; background:transparent; border:1px solid var(--line);
+  box-shadow:none; transform:none}
+#zone-net .tiroirs button:hover{background:var(--sunk); border-color:var(--line-strong);
+  transform:none}
+#zone-net .tiroirs button.on{border-width:1px}
+#zone-net .tiroirs button .n{font-size:13px; font-weight:700; letter-spacing:0}
+#zone-net .tiroirs button .pied{gap:6px}
+#zone-net .tiroirs button .nom{font-size:13px; font-weight:400; text-transform:lowercase}
+#zone-net .tiroirs button .ico{width:auto; height:auto; border-radius:0; font-size:13px;
+  background:none !important; filter:var(--bc-picto)}
+
+/* Les fiches : des messages de la veille. */
+#zone-net .carte, #zone-flyer .carte{border-color:var(--line); padding:14px 14px 12px}
+#zone-net .carte.ouverte, #zone-flyer .carte.ouverte{border-color:var(--accent);
+  box-shadow:none}
+#zone-net .carte-x:hover{background:var(--sunk)}
+.f-source{font-size:12px; font-weight:500; letter-spacing:0; text-transform:none;
+  color:var(--pair-c, var(--ink-2))}
+@media (prefers-color-scheme:dark){
+  :root:not([data-theme="light"]) .f-source{color:var(--pair-s, var(--ink-2))}
+}
+:root[data-theme="dark"] .f-source{color:var(--pair-s, var(--ink-2))}
+.f-source::before{content:"<@"}
+.f-source::after{content:">"}
+.f-club{font-size:16px; font-weight:700; letter-spacing:0; line-height:1.35}
+.carte.ouverte .f-club{font-size:18px; letter-spacing:0}
+.f-sport, .carte.ouverte .f-sport{font-size:15px; margin-right:7px; filter:var(--bc-picto)}
+.f-tournoi{font-size:13px; text-transform:lowercase}
+.f-lab{font-size:12px; font-weight:400; letter-spacing:0; text-transform:lowercase}
+.f-lab::before{content:"// "}
+.f-cats{gap:4px 12px; margin-top:6px}
+/* Les categories entre crochets, sans case : « [U12] [U13 à 8] ». Un age
+   (U11, Benjamins…) decide de la journee : il passe en gros et en gras,
+   dans le vert du texte ; le format de jeu (« a 8 ») reste plus discret.
+   Pose par bitchat.js. Les autres categories restent en petit. */
+.f-cat{font-size:13px; font-weight:500; color:var(--ink-2); background:none !important;
+  border:0 !important; border-radius:0 !important; padding:0 !important}
+.f-cat::before{content:"["; color:var(--line-strong); font-weight:400}
+.f-cat::after{content:"]"; color:var(--line-strong); font-weight:400}
+.f-cat.bc-age{color:var(--ink); font-size:16px; font-weight:800}
+bc-format{font-size:12px; font-weight:500; opacity:.75}
+/* De U6 a U10, le texte de l'age scintille : un eclat de lumiere passe dans
+   les lettres. Blanc sur le vert du sombre, vert vif sur le vert fonce du
+   clair. */
+:root{--bc-eclat:#4CE36A}
+@media (prefers-color-scheme:dark){
+  :root:not([data-theme="light"]){--bc-eclat:#FFFFFF}
+}
+:root[data-theme="dark"]{--bc-eclat:#FFFFFF}
+:root[data-theme="light"]{--bc-eclat:#4CE36A}
+.f-cat.bc-petits bc-u{
+  background:linear-gradient(110deg, var(--ink) 42%, var(--bc-eclat) 50%,
+    var(--ink) 58%) 0 0 / 320% 100%;
+  -webkit-background-clip:text; background-clip:text;
+  color:transparent; -webkit-text-fill-color:transparent;
+  animation:bc-eclat 2.2s linear infinite}
+@keyframes bc-eclat{from{background-position:100% 0} to{background-position:0% 0}}
+@media (prefers-reduced-motion:reduce){
+  .f-cat.bc-petits bc-u{animation:none; -webkit-text-fill-color:currentColor; color:inherit;
+    background:none}
+}
+/* Les faits : une ligne chacun. La raison qui compte en tete, en vert. */
+#zone-net .f-faits, #zone-flyer .f-faits{flex-direction:column; gap:2px; margin-top:8px}
+#zone-net .f-fait, #zone-flyer .f-fait{font-size:13px; color:var(--ink-2);
+  background:transparent !important; border:0 !important; border-radius:0 !important;
+  padding:0; min-width:0; max-width:100%; overflow-wrap:anywhere}
+#zone-net .f-fait::before, #zone-flyer .f-fait::before{content:"\00b7  "; color:var(--line-strong)}
+#zone-net .f-fait.pourquoi, #zone-flyer .f-fait.pourquoi{color:var(--ink) !important;
+  font-weight:700}
+#zone-net .f-fait.pourquoi::before, #zone-flyer .f-fait.pourquoi::before{content:"> "}
+
+/* ---- La carte se lit de haut en bas, par ordre d'importance ---------------
+   Le titre, puis les categories d'age (ce qui decide), puis quand, puis a
+   quelle distance, puis combien d'equipes. Trois reperes, trois aspects : on
+   les distingue avant de les lire.
+   - la date : un contour en POINTILLE, sans fond — un rendez-vous a venir ;
+     sa couleur dit l'urgence, et le « J-2 » est une petite pastille pleine ;
+   - la distance : un APLAT colore (cyan, orange si loin, rouge si hors zone) ;
+   - les equipes : le LISERE holo. */
+.carte-faits{display:flex; flex-direction:column}
+/* Un bloc que cette liste ne nomme pas se range apres les reperes, jamais
+   au-dessus du titre. */
+.carte-faits > *{order:7}
+.carte-faits > .f-source{order:0}
+.carte-faits > .f-club{order:1}
+.carte-faits > .f-tournoi{order:2}
+.carte-faits > .f-bloc:has(.f-cats){order:3; margin-top:10px}
+.carte-faits > .f-bloc:has(.f-cats) .f-lab{display:none}
+.carte-faits > .f-quand{order:4}
+.carte-faits > .f-pris, .carte-faits > .f-booke, .carte-faits > .f-suivi{order:5}
+.carte-faits > .f-paves{order:6}
+.carte-faits > .f-bloc{order:7}
+.carte-faits > .f-faits{order:8}
+
+.f-date{--date-c:var(--ink); color:var(--date-c) !important; background:transparent !important;
+  border:1.5px dashed var(--date-c) !important; padding:6px 12px !important;
+  font-size:16px !important; font-weight:700; gap:8px !important; align-items:center !important}
+.f-date.bientot{--date-c:var(--amber)}
+.f-date.urgent{--date-c:var(--red)}
+.carte.ouverte .f-date{font-size:19px !important; padding:8px 14px !important}
+.f-date .f-reste:not(.bc-direct){background:var(--date-c); color:var(--bg); opacity:1;
+  font-size:12px; font-weight:800; padding:1px 6px; border-radius:3px}
+/* Meme lecture sur Aujourd'hui et Tournois : la date en pointille. */
+.rep.date{--date-c:var(--ink); color:var(--date-c) !important; background:transparent !important;
+  border:1.5px dashed var(--date-c) !important; align-items:center !important}
+.rep.date.bientot{--date-c:var(--amber)}
+.rep.date.urgent{--date-c:var(--red)}
+.rep.date i:not(.bc-direct){background:var(--date-c); color:var(--bg) !important; opacity:1 !important;
+  font-size:12px !important; font-weight:800 !important; padding:1px 6px; border-radius:3px}
+
+/* La duree d'abord, en grand ; les kilometres apres : « 2 h 53 · 257 km ».
+   C'est le temps de route qui decide — soixante-cinq bornes d'autoroute ou
+   d'arriere-pays ne font pas la meme journee. Partout ou la route s'affiche. */
+.f-dist{padding:9px 12px !important; gap:4px 9px !important; align-items:center !important}
+.f-dist .f-min{order:1; font-size:21px !important; font-weight:700 !important}
+.f-dist .f-km{order:2; font-size:15px !important; font-weight:600 !important}
+.f-dist .f-verdict{order:3; font-size:12px !important; padding:2px 9px !important}
+.carte.ouverte .f-dist .f-min{font-size:24px !important}
+.carte.ouverte .f-dist .f-km{font-size:17px !important}
+.f-dist .f-min::before{content:none}
+.f-dist:not(.inconnu) .f-km::before{content:"\00b7"; margin-right:9px; opacity:.6; font-weight:400}
+.rep.route:has(i), .pave.route:has(i){display:inline-flex; align-items:baseline; gap:8px}
+.rep.route:has(i) i, .pave.route:has(i) i{order:-1; font-size:19px !important;
+  font-weight:700; font-style:normal}
+.rep.route:has(i) b, .pave.route:has(i) b{font-size:13px !important; font-weight:600}
+.rep.route:has(i) b::before, .pave.route:has(i) b::before{content:"\00b7  "; opacity:.6;
+  font-weight:400}
+.f-equipes{padding:8px 12px !important}
+.f-equipes .f-nb{font-size:21px}
+.f-paves{gap:8px !important; margin-top:10px !important}
+
+/* ==== Toutes les pages, avec la grammaire du Reperage =======================
+   Des salons (« ## titre (12) »), des commentaires (« // libelle »), des
+   lignes systeme (« * explication * »), des etiquettes entre crochets
+   (« [a appeler] »), les compteurs en rangees, et les gens en « @nom » dans
+   leur couleur (bitchat.js). Rien n'est retire : le texte reste celui des
+   ecrans, seule sa mise en forme change. */
+
+/* Les titres de section : un salon. Le nom d'un club en tete de carte n'en
+   est pas un : il devient un « @nom », plus bas. */
+main h2:not(.qui), .wrap h2:not(.qui){flex-wrap:wrap; text-transform:lowercase;
+  letter-spacing:0; font-size:16px; font-weight:700; color:var(--ink)}
+main h2:not(.qui)::before, .wrap h2:not(.qui)::before{content:"## "; color:var(--line-strong);
+  font-weight:400}
+h2 .n{background:none !important; padding:0 !important; border-radius:0 !important;
+  font-size:12px !important; font-weight:400 !important; color:var(--ink-3) !important}
+h2 .n:not(:empty)::before{content:"("}
+h2 .n:not(:empty)::after{content:")"}
+/* Le sous-titre passe sous le titre, en ligne systeme. */
+h2 .sous{order:9; flex:1 0 100%; font-size:12px !important; font-style:italic;
+  font-weight:400; text-transform:none; color:var(--ink-3)}
+h2 .sous:not(:empty)::before{content:"* "}
+h2 .sous:not(:empty)::after{content:" *"}
+
+/* Les groupes repliables (Tournois) : un salon aussi, « ## nom (242) ». */
+.zone > summary b{text-transform:lowercase}
+.zone > summary b::before{content:"## "; color:var(--line-strong); font-weight:400}
+.zone > summary .n{font-size:12px !important; color:var(--ink-3) !important}
+.zone > summary .n:not(:empty)::before{content:"("}
+.zone > summary .n:not(:empty)::after{content:")"}
+.zone > summary .sous{font-size:12px; font-style:italic; color:var(--ink-3)}
+.zone > summary .sous:not(:empty)::before{content:"* "}
+.zone > summary .sous:not(:empty)::after{content:" *"}
+
+/* Les sous-titres et les libelles : des commentaires. */
+main h3, .wrap h3{text-transform:lowercase !important; letter-spacing:0 !important;
+  font-weight:400; color:var(--ink-3)}
+main h3::before, .wrap h3::before{content:"// "}
+.etiq-fil, .p-jour, .jeton, .lu-tete, .mini-head .quoi, .date .quand .unite,
+.dossier .note b, .acte .verbe{text-transform:lowercase !important; letter-spacing:0 !important}
+.etiq-fil::before, .lu-tete::before{content:"// "}
+
+/* Les explications : des lignes systeme, grises, en italique, entre etoiles. */
+.chapeau, p.hint, p.pourquoi, p.source{font-style:italic; color:var(--ink-3)}
+.chapeau{font-size:13px}
+.chapeau::before, p.hint::before, p.pourquoi::before, p.source::before{content:"* "}
+.chapeau::after, p.hint::after, p.pourquoi::after, p.source::after{content:" *"}
+
+/* Les etiquettes : entre crochets, sans pastille. Leur couleur dit leur sens. */
+.tag, .etiq, .etiq-r, .marque-t, .routine, .etat, .etiq-prio{background:transparent !important;
+  border:0 !important; border-radius:0 !important; padding:0 !important;
+  font-weight:500; box-shadow:none !important}
+.tag::before, .etiq::before, .etiq-r::before, .marque-t::before, .routine::before, .etat::before, .etiq-prio::before{
+  content:"["; color:var(--line-strong); font-weight:400}
+.tag::after, .etiq::after, .etiq-r::after, .marque-t::after, .routine::after, .etat::after, .etiq-prio::after{
+  content:"]"; color:var(--line-strong); font-weight:400}
+
+/* Les compteurs du jour (et les piles de Repondre) : une rangee, le chiffre
+   devant, comme un en-tete. */
+.piles{display:flex !important; flex-wrap:wrap; gap:6px !important}
+.pile{display:inline-flex !important; align-items:baseline; gap:8px; flex:0 0 auto !important;
+  padding:6px 11px !important; min-height:0 !important}
+.pile b{font-size:15px !important; font-weight:700 !important; letter-spacing:0 !important}
+.pile i{font-size:12px !important; font-style:normal}
+.kpis{display:flex !important; flex-wrap:wrap; gap:6px !important}
+.kpi{display:flex !important; align-items:baseline; gap:8px; padding:6px 11px !important;
+  background:transparent !important}
+.kpi b{display:inline !important; font-size:15px !important; font-weight:700 !important;
+  letter-spacing:0 !important}
+.kpi span{font-size:12px !important}
+/* Les tiroirs du jour : la liste de salons du Reperage. */
+.tiroirs-jour{gap:6px}
+.tiroirs-jour button{flex-direction:row-reverse; align-items:center; gap:8px; min-width:0;
+  padding:5px 10px; background:transparent; border:1px solid var(--line)}
+.tiroirs-jour button:hover{background:var(--sunk); border-color:var(--line-strong)}
+.tiroirs-jour button.on{border:1px solid currentColor}
+.tiroirs-jour button .n{font-size:13px; font-weight:700; letter-spacing:0}
+.tiroirs-jour button .nom{font-size:13px; font-weight:400; text-transform:lowercase}
+
+/* Les gens et les clubs : « @nom », dans la couleur que bitchat.js leur
+   donne — toujours la meme pour le meme nom. */
+.gens h3, .acte button.qui, #attendent .item .t, h2.qui, .carte-club button.ouvrir,
+.club-nom{color:var(--pair-c, var(--ink));
+  text-transform:none !important; font-weight:700}
+@media (prefers-color-scheme:dark){
+  :root:not([data-theme="light"]) .gens h3, :root:not([data-theme="light"]) .acte button.qui,
+  :root:not([data-theme="light"]) #attendent .item .t,
+  :root:not([data-theme="light"]) h2.qui,
+  :root:not([data-theme="light"]) .carte-club button.ouvrir,
+  :root:not([data-theme="light"]) .club-nom{color:var(--pair-s, var(--ink))}
+}
+:root[data-theme="dark"] .gens h3, :root[data-theme="dark"] .acte button.qui,
+:root[data-theme="dark"] #attendent .item .t, :root[data-theme="dark"] h2.qui,
+:root[data-theme="dark"] .carte-club button.ouvrir, :root[data-theme="dark"] .club-nom{
+  color:var(--pair-s, var(--ink))}
+.gens h3::before, .acte button.qui::before, #attendent .item .t::before, h2.qui::before,
+.carte-club button.ouvrir::before, .club-nom::before{
+  content:"@"; opacity:.6; font-weight:400}
+.gens h3{font-size:16px !important; letter-spacing:0 !important}
+h2.qui{font-size:18px; letter-spacing:0}
+
+/* En chasse fixe, les adresses des flux iCal (Reglages) ne tenaient plus :
+   la colonne s'elargissait a leur mesure et la page defilait de cote. Les
+   colonnes peuvent retrecir, l'adresse se coupe sur ses points de suite. */
+.cols > *, .feed code{min-width:0}
+/* Meme chose pour le champ « numero ou mail » d'un brouillon sans contact :
+   il gardait sa largeur et poussait « Utiliser » hors du cadre. */
+.brouillon .manque input, .ia-ligne .ia-dire{min-width:0}
+.mono{overflow-wrap:anywhere}
+
+/* Un brouillon n'est pas encore parti : son cadre est en pointille, comme le
+   rond « pas encore envoye » de bitchat. */
+.brouillon, .propose textarea.mot{border-style:dashed !important}
+
+/* Les pictogrammes : le vert monochrome du Reperage. Sur un geste en aplat
+   vert, ils passent au noir du texte. */
+.ico, .blason .picto{filter:var(--bc-picto)}
+/* Dans un geste bleu, le pictogramme est bleu ; dans un geste discret, gris. */
+.geste.piece .ico, .geste.trouver .ico, .geste.appel:not(.maitre) .ico{
+  filter:grayscale(1) sepia(1) hue-rotate(175deg) saturate(6) brightness(.75)}
+@media (prefers-color-scheme:dark){
+  :root:not([data-theme="light"]) :is(.geste.piece, .geste.trouver, .geste.appel:not(.maitre)) .ico{
+    filter:grayscale(1) sepia(1) hue-rotate(175deg) saturate(6) brightness(1.25)}
+}
+:root[data-theme="dark"] :is(.geste.piece, .geste.trouver, .geste.appel:not(.maitre)) .ico{
+  filter:grayscale(1) sepia(1) hue-rotate(175deg) saturate(6) brightness(1.25)}
+.geste.discret .ico{filter:grayscale(1) opacity(.75)}
+.geste.maitre .ico, button.primary .ico, .primaire .ico, .wa .ico{
+  filter:grayscale(1) brightness(0) invert(1)}
+@media (prefers-color-scheme:dark){
+  :root:not([data-theme="light"]) :is(.geste.maitre, button.primary, .primaire, .wa) .ico{
+    filter:grayscale(1) brightness(0)}
+}
+:root[data-theme="dark"] :is(.geste.maitre, button.primary, .primaire, .wa) .ico{
+  filter:grayscale(1) brightness(0)}
+
+@media (prefers-reduced-motion:reduce){
+  .bc-direct, bc-barre{animation:none}
+  .bc-onde{animation:none; opacity:.5}
+  .bc-onde:nth-child(1){transform:scale(.35)}
+  .bc-onde:nth-child(2){transform:scale(.7)}
+  .bc-onde:nth-child(3){transform:scale(1); opacity:.25}
+}

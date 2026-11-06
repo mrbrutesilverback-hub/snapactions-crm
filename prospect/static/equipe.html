@@ -1,0 +1,1228 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Dispatch — SnapActions</title>
+<link rel="stylesheet" href="/cartes.css">
+<link rel="stylesheet" href="/fiche.css">
+<link rel="stylesheet" href="/nav.css">
+<style>
+/* Deux listes, deux gestes. En haut les dates qu'on TIENT et ou il manque
+   quelqu'un : on appelle le groupe. En bas les gros plateaux qu'on a REPERES
+   et ou on n'a personne sur place : on les confie au sourceur. Melanger les
+   deux donnait une page qui ne disait pas quoi faire. */
+.zone{display:flex; align-items:baseline; gap:10px; flex-wrap:wrap;
+  margin:28px 0 0; padding:0 0 8px; border-bottom:1px solid var(--line)}
+.zone h2{margin:0; font-size:17px; font-weight:650}
+.zone small{color:var(--ink-3); font-size:13.5px}
+.zone .cpt{margin-left:auto; color:var(--ink-3); font-size:13.5px}
+
+.vide{margin:12px 0 0; padding:14px 16px; border-radius:13px;
+  background:var(--sunk); color:var(--ink-3); font-size:14.5px}
+
+.grille{display:grid; gap:12px; margin:14px 0 0;
+  grid-template-columns:repeat(auto-fill, minmax(330px, 1fr))}
+.date{padding:14px 16px; border-radius:14px; background:var(--card);
+  border:1px solid var(--line)}
+.date.choisie{border-color:var(--green); background:var(--green-soft)}
+.date h3{margin:0; font-size:16px; font-weight:650; line-height:1.3}
+.date .ou{margin:4px 0 0; color:var(--ink-3); font-size:13.5px}
+.date .etiqs{display:flex; gap:6px; flex-wrap:wrap; margin:9px 0 0}
+.etiq{font-size:12.5px; padding:3px 10px; border-radius:100px;
+  background:var(--sunk); border:1px solid var(--line); color:var(--ink-2)}
+.etiq.gros{border-color:var(--green); color:var(--green); font-weight:650}
+.etiq.loin{border-color:var(--amber); color:var(--amber)}
+.etiq.bientot{border-color:var(--blue); color:var(--blue)}
+.date .faire{display:flex; gap:7px; flex-wrap:wrap; margin:12px 0 0}
+.date button, .date a{font:inherit; font-size:14px; padding:7px 13px;
+  border-radius:10px; cursor:pointer; text-decoration:none;
+  background:var(--sunk); color:var(--ink); border:1px solid var(--line)}
+.date button.primaire{background:var(--green); border-color:var(--green); color:#fff}
+.date button:disabled{opacity:.5; cursor:default}
+
+/* Le brouillon de l'appel, sous la carte : on relit avant que ca parte. */
+.mot{flex:1 1 100%; margin:12px 0 0; padding:12px; border-radius:12px;
+  background:var(--sunk); border:1px solid var(--line)}
+.mot textarea{width:100%; box-sizing:border-box; font:inherit; font-size:14.5px;
+  line-height:1.5; padding:10px 12px; border-radius:10px; resize:vertical;
+  background:var(--card); color:var(--ink); border:1px solid var(--line)}
+.mot textarea:focus{outline:none; border-color:var(--green)}
+.mot .ligne{display:flex; gap:7px; flex-wrap:wrap; align-items:center; margin-top:9px}
+.mot select{font:inherit; font-size:14px; padding:7px 10px; border-radius:10px;
+  background:var(--card); color:var(--ink); border:1px solid var(--line)}
+.mot small{display:block; margin-top:7px; color:var(--ink-3); font-size:13px}
+
+.barre{display:flex; gap:9px; flex-wrap:wrap; align-items:center; margin:14px 0 0}
+.barre button{font:inherit; font-size:15px; font-weight:600; padding:9px 17px;
+  border-radius:11px; cursor:pointer; background:var(--card); color:var(--ink);
+  border:1px solid var(--line)}
+.barre button.primaire{background:var(--green); border-color:var(--green); color:#fff}
+.barre button:disabled{opacity:.5; cursor:default}
+.barre select{font:inherit; font-size:14.5px; padding:8px 11px; border-radius:10px;
+  background:var(--card); color:var(--ink); border:1px solid var(--line)}
+.barre .dit{color:var(--ink-3); font-size:13.5px}
+
+.compte{padding:13px 15px; border-radius:13px; background:var(--card);
+  border:1px solid var(--line)}
+.compte.dort{opacity:.6}
+.compte b{font-size:16px}
+.compte small{display:block; margin-top:3px; color:var(--ink-3); font-size:13.5px}
+.compte .faire{display:flex; gap:7px; flex-wrap:wrap; margin-top:10px}
+.compte button{font:inherit; font-size:13.5px; padding:6px 11px; border-radius:9px;
+  cursor:pointer; background:var(--sunk); color:var(--ink); border:1px solid var(--line)}
+.compte button.danger:hover{border-color:var(--red); color:var(--red)}
+#neuf-compte input, #neuf-compte select{font:inherit; font-size:14.5px;
+  padding:8px 11px; border-radius:10px; background:var(--card); color:var(--ink);
+  border:1px solid var(--line); margin:0 7px 7px 0}
+#ouverture .dit{color:var(--ink-3); font-size:13.5px}
+#ouverture .alerte{color:var(--amber); font-size:13.5px}
+
+/* L'acces de dehors. Un seul bouton : la serrure, la verification et le
+   tunnel partent ensemble, parce que separes on en oublie un — et celui
+   qu'on oublie est toujours la serrure. */
+.acces{margin:14px 0 0; padding:16px 18px; border-radius:14px;
+  background:var(--card); border:1px solid var(--line)}
+.acces.ouvert{border-color:var(--green); background:var(--green-soft)}
+.acces .etat{display:flex; gap:10px; align-items:center; flex-wrap:wrap}
+.acces .pastille{width:10px; height:10px; border-radius:100px;
+  background:var(--ink-3); flex:0 0 auto}
+.acces.ouvert .pastille{background:var(--green)}
+.acces .etat b{font-size:16px}
+.acces .etat small{color:var(--ink-3); font-size:13.5px}
+.acces .faire{display:flex; gap:8px; flex-wrap:wrap; margin:13px 0 0}
+.acces .faire button{font:inherit; font-size:15px; font-weight:600;
+  padding:9px 17px; border-radius:11px; cursor:pointer; background:var(--sunk);
+  color:var(--ink); border:1px solid var(--line)}
+.acces .faire button.primaire{background:var(--green); border-color:var(--green);
+  color:#fff}
+.acces .faire button:disabled{opacity:.5; cursor:default}
+.acces .lien{margin:13px 0 0; padding:11px 13px; border-radius:11px;
+  background:var(--ground); border:1px solid var(--line)}
+.acces .lien code{display:block; font-size:14.5px; word-break:break-all;
+  line-height:1.5}
+.acces .lien .faire{margin-top:10px}
+.acces .lien .faire button{font-size:13.5px; font-weight:500; padding:6px 12px}
+.acces .dit{margin:9px 0 0; color:var(--ink-3); font-size:13.5px; line-height:1.5}
+.acces .alerte{margin:9px 0 0; color:var(--amber); font-size:13.5px; line-height:1.5}
+
+/* Ce qu'on lui a envoye, et ce qu'il en a fait. Sans ca, « confier » est un
+   bouton qui ne rend rien : on ne sait plus ce qu'on attend de qui. */
+.suivi{margin:14px 0 0}
+.suivi .pour{margin:0 0 7px; font-size:14px; font-weight:650;
+  letter-spacing:.03em; text-transform:uppercase; color:var(--ink-3)}
+.suivi .l{display:flex; gap:12px; align-items:baseline; flex-wrap:wrap;
+  padding:10px 14px; border-radius:11px; background:var(--card);
+  border:1px solid var(--line); margin-bottom:6px}
+.suivi .l.ok{border-color:var(--green); background:var(--green-soft)}
+.suivi .l .j{flex:0 0 96px; font-weight:650; font-size:14px}
+.suivi .l .q{flex:1 1 200px; min-width:0}
+.suivi .l .q b{display:block; font-size:14.5px; font-weight:600;
+  overflow:hidden; text-overflow:ellipsis; white-space:nowrap}
+.suivi .l .q small{color:var(--ink-3); font-size:13px}
+.suivi .l .e{flex:0 0 auto; font-size:12.5px; padding:3px 10px;
+  border-radius:100px; background:var(--sunk); border:1px solid var(--line);
+  color:var(--ink-2)}
+.suivi .l .e.ok{border-color:var(--green); color:var(--green); font-weight:650}
+.suivi .l .e.rien{border-color:var(--amber); color:var(--amber)}
+
+/* Les sorties : une ligne par jour et par lieu, pas une carte par evenement.
+   Quatre « Shoot » le meme matin au stade de Brulat, c'est un deplacement et
+   un photographe a trouver — pas quatre cartes a lire. */
+/* Le mois, comme dans Calendrier : on voit d’un coup où sont les dates,
+   lesquelles sont couvertes et lesquelles n’ont personne. Une liste ne
+   montre jamais ça — il faut la lire en entier pour s’en faire une idée. */
+.mois-tete{display:flex; align-items:center; gap:12px; margin:18px 0 10px}
+.mois-tete h3{margin:0; font-size:19px; font-weight:650; letter-spacing:-.01em;
+  text-transform:capitalize; flex:1 1 auto}
+.mois-tete button{font:inherit; font-size:16px; line-height:1; padding:7px 13px;
+  border-radius:10px; cursor:pointer; background:var(--sunk); color:var(--ink);
+  border:1px solid var(--line)}
+.mois-tete button:hover{border-color:var(--green)}
+/* minmax(0,…) et pas 1fr seul : une colonne de grille prend par défaut la
+   largeur de son contenu, et un titre long comme « MMA – Cours du soir
+   (3 sections) » faisait déborder la semaine hors de l’écran. */
+.cal{display:grid; grid-template-columns:repeat(7, minmax(0, 1fr)); gap:5px}
+.cal .nom-j{font-size:11.5px; letter-spacing:.05em; text-transform:uppercase;
+  color:var(--ink-3); font-weight:600; text-align:center; padding:4px 0}
+.cal .case{min-height:76px; padding:6px 7px; border-radius:11px;
+  background:var(--card); border:1px solid var(--line); cursor:default}
+.cal .case.hors{opacity:.35}
+.cal .case.auj{border-color:var(--green); box-shadow:0 0 0 1px var(--green)}
+.cal .case.choisi{background:var(--sunk); border-color:var(--ink-3)}
+.cal .case .n{font-size:13px; font-weight:650; color:var(--ink-2)}
+.cal .puce{display:block; width:100%; text-align:left; font:inherit;
+  font-size:11.5px; line-height:1.25; margin-top:4px; padding:3px 6px;
+  border-radius:7px; cursor:pointer; border:1px solid transparent;
+  overflow:hidden; text-overflow:ellipsis; white-space:nowrap}
+.cal .puce.vide{background:rgba(180,120,10,.16); color:var(--amber);
+  border-color:var(--amber)}
+.cal .puce.ok{background:var(--green-soft); color:var(--green);
+  border-color:var(--green)}
+.cal .puce.cherche{background:var(--violet-soft); color:var(--violet);
+  border-color:var(--violet)}
+.cal .puce:hover{filter:brightness(1.15)}
+
+/* Des cartes, comme dans Repérage : même dessin, mêmes repères, rien à
+   réapprendre d’un écran à l’autre. .fiche (cartes.css) donne le fond, le
+   cadre et l’ombre ; .f-* (fiche.css) le titre, la date et la distance. */
+.sorties{display:grid; gap:14px; margin:18px 0 0}
+.sortie.vide{border-color:var(--amber)}
+.sortie.ok{border-color:var(--green)}
+.sortie .detail{margin-top:18px; padding-top:14px; border-top:1px solid var(--line)}
+.sortie .shoot{display:flex; gap:10px; align-items:center; flex-wrap:wrap;
+  padding:9px 0; border-bottom:1px dashed var(--line)}
+.sortie .shoot:last-child{border-bottom:0}
+.sortie .shoot .nom{flex:1 1 170px; min-width:0; font-size:14px;
+  overflow:hidden; text-overflow:ellipsis; white-space:nowrap}
+.sortie .shoot .h{flex:0 0 58px; font-size:13px; color:var(--ink-3)}
+.sortie select{font:inherit; font-size:13.5px; padding:5px 9px; border-radius:9px;
+  background:var(--sunk); color:var(--ink); border:1px solid var(--line)}
+.sortie .shoot button{font:inherit; font-size:13px; padding:5px 10px;
+  border-radius:9px; cursor:pointer; background:var(--sunk); color:var(--ink-2);
+  border:1px solid var(--line)}
+.sortie .faire-j{display:flex; gap:8px; flex-wrap:wrap; margin-top:11px}
+.sortie .faire-j button{font:inherit; font-size:14px; font-weight:600;
+  padding:7px 14px; border-radius:10px; cursor:pointer; background:var(--sunk);
+  color:var(--ink); border:1px solid var(--line)}
+.sortie .faire-j button.primaire{background:var(--green); border-color:var(--green);
+  color:#fff}
+.sortie .mot{margin-top:11px}
+.toast{position:fixed; left:50%; bottom:26px; transform:translateX(-50%);
+  background:var(--ink); color:var(--ground); padding:11px 18px; border-radius:100px;
+  font-size:15px; box-shadow:var(--lift); z-index:50}
+[hidden]{display:none !important}
+</style>
+<script>
+  try {
+    var t = localStorage.getItem('theme');
+    if (t === 'dark' || t === 'light') document.documentElement.dataset.theme = t;
+  } catch (e) {}
+</script>
+<link rel="stylesheet" href="/bitchat.css">
+</head>
+<body>
+<div class="wrap">
+  <div class="marque">SnapActions</div>
+  <h1>Dispatch</h1>
+  <p class="chapeau" id="chapeau">Les dates que vous avez bookées, et qui les couvre. Personne dans le secteur ? La carte part chez le sourceur.</p>
+
+  <div class="zone">
+    <h2 id="titre-acces">Son accès</h2>
+    <small>un bouton : la serrure, la vérification, le tunnel — et l’adresse à lui donner</small>
+  </div>
+  <div class="acces" id="acces"></div>
+  <div class="suivi" id="confiees"></div>
+
+  <div class="zone">
+    <h2>Vos sorties</h2>
+    <small>votre calendrier, jour par jour — qui y va, et ce qui n’a personne</small>
+    <span class="cpt" id="cpt-dates"></span>
+  </div>
+  <div class="mois-tete" id="mois-tete" hidden></div>
+  <div class="cal" id="cal" hidden></div>
+  <div class="sorties" id="dates"></div>
+
+  <div class="zone">
+    <h2>Gros plateaux à confier</h2>
+    <small>repérés par la veille, personne sur place — le sourceur cherche</small>
+    <span class="cpt" id="cpt-gros"></span>
+  </div>
+  <div class="barre" id="barre-sourceur"></div>
+  <div class="grille" id="gros"></div>
+  <div class="mot" id="mot-sourceur" hidden></div>
+
+  <div class="zone">
+    <h2>Les comptes</h2>
+    <small>qui peut se connecter, et ce qu’il voit</small>
+    <span class="cpt" id="cpt-comptes"></span>
+  </div>
+  <div class="barre" id="ouverture"></div>
+  <div class="grille" id="comptes"></div>
+  <div class="mot" id="neuf-compte"></div>
+</div>
+<div class="toast" id="toast" hidden></div>
+
+<script>
+function $(s, r){ return (r || document).querySelector(s); }
+function neud(b, c, t){
+  const e = document.createElement(b);
+  if (c) e.className = c;
+  if (t != null) e.textContent = t;
+  return e;
+}
+function toast(m){
+  const t = $("#toast");
+  t.textContent = m; t.hidden = false;
+  clearTimeout(toast._t);
+  toast._t = setTimeout(() => { t.hidden = true; }, 4000);
+}
+async function api(url, corps, methode){
+  const m = methode || (corps ? "POST" : "GET");
+  const r = await fetch(url, m === "GET" ? undefined : {
+    method: m,
+    headers: {"Content-Type": "application/json"},
+    body: corps ? JSON.stringify(corps) : undefined
+  });
+  const d = await r.json().catch(() => ({}));
+  if (!r.ok) throw new Error(d.error || "refus");
+  return d;
+}
+
+const E = {gros: [], choisis: new Set(), crews: [], team: [], sourceur: null};
+
+async function charger(){
+  const d = await api("/api/equipe");
+  E.gros = d.gros || [];
+  E.crews = d.crews || [];
+  E.team = d.team || [];
+  E.sourceur = d.sourceur || null;
+  E.comptesActifs = d.comptes || [];
+  E.mini = d.mini;
+  chargerSorties();
+  peindreSourceur();
+  peindreGros();
+  chargerComptes();
+}
+
+/* --- Les comptes ---------------------------------------------------------
+   Le sourceur se connecte de chez lui : il lui faut un compte. Ce bloc le
+   cree, change son mot de passe, le suspend. Les mots de passe ne sont
+   jamais relus ni reaffiches — seule leur empreinte existe en base. */
+async function chargerComptes(){
+  let d;
+  try { d = await api("/api/comptes", null); }
+  catch (e) { $("#comptes").innerHTML = ""; return; }
+  E.comptes = d.items || [];
+  E.roles = d.roles || [];
+  E.ouvert = !!d.ouvert;
+  peindreOuverture();
+  peindreComptes();
+  peindreNeuf();
+  // Le bloc d'acces dit « Ouvrir à Boby », donc il a besoin des comptes :
+  // les deux chargements courent en parallele, on repeint celui qui arrive
+  // en second.
+  if (E.tunnel) peindreAcces();
+}
+
+function peindreOuverture(){
+  const b = $("#ouverture");
+  b.innerHTML = "";
+  const patron = E.comptes.some(c => c.role === "patron" && c.actif);
+  const bouton = neud("button", E.ouvert ? "" : "primaire",
+    E.ouvert ? "🔓 Ouvert sur internet — refermer" : "🔒 Fermé — ouvrir sur internet");
+  bouton.type = "button";
+  bouton.disabled = !E.ouvert && !patron;
+  bouton.addEventListener("click", async () => {
+    if (!E.ouvert && !confirm(
+        "Ouvrir le CRM sur internet ?\n\n"
+        + "À partir de là, TOUT demande un mot de passe — y compris depuis ce Mac.\n"
+        + "C'est voulu : derrière un tunnel, une requête venue du monde entier "
+        + "se présente comme venant d'ici.\n\n"
+        + "Assurez-vous de connaître le mot de passe de votre compte patron.")) return;
+    try {
+      await api("/api/comptes/ouverture", {ouvert: !E.ouvert});
+      toast(E.ouvert ? "CRM refermé" : "CRM ouvert — votre mot de passe est maintenant exigé");
+      chargerComptes();
+    } catch (e) { toast("Échec : " + e.message); }
+  });
+  b.appendChild(bouton);
+  if (!patron) {
+    b.appendChild(neud("span", "alerte",
+      "⚠ Créez d’abord VOTRE compte en « patron », sinon vous vous enfermez dehors."));
+  } else if (E.ouvert) {
+    b.appendChild(neud("span", "alerte",
+      "Le CRM est joignable de l’extérieur. Chaque compte ne voit que ce qui le regarde."));
+  } else {
+    b.appendChild(neud("span", "dit",
+      "Fermé : le CRM n’écoute que ce Mac, aucun mot de passe n’est demandé."));
+  }
+}
+
+function peindreComptes(){
+  const g = $("#comptes");
+  g.innerHTML = "";
+  $("#cpt-comptes").textContent = E.comptes.length
+    ? E.comptes.length + (E.comptes.length > 1 ? " comptes" : " compte") : "";
+  if (!E.comptes.length) {
+    g.appendChild(neud("div", "vide", "Aucun compte. Créez le vôtre, puis celui du sourceur."));
+    return;
+  }
+  E.comptes.forEach(c => {
+    const d = neud("div", "compte" + (c.actif ? "" : " dort"));
+    d.appendChild(neud("b", null, c.nom || c.identifiant));
+    d.appendChild(neud("small", null,
+      [c.identifiant, c.role, c.missions ? c.missions + " mission(s)" : null,
+       c.vu_le ? "vu le " + String(c.vu_le).slice(0, 10) : "jamais venu",
+       c.actif ? null : "suspendu"].filter(Boolean).join(" · ")));
+    const f = neud("div", "faire");
+
+    const mdp = neud("button", null, "Changer le mot de passe");
+    mdp.type = "button";
+    mdp.addEventListener("click", async () => {
+      const v = prompt("Nouveau mot de passe pour « " + (c.nom || c.identifiant)
+                       + " » (8 caractères au moins) :");
+      if (!v) return;
+      try {
+        await api("/api/comptes/" + c.id, {mot_de_passe: v}, "PATCH");
+        toast("Mot de passe changé — ses sessions ouvertes sont fermées");
+      } catch (e) { toast("Échec : " + e.message); }
+    });
+    f.appendChild(mdp);
+
+    const sus = neud("button", null, c.actif ? "Suspendre" : "Réactiver");
+    sus.type = "button";
+    sus.addEventListener("click", async () => {
+      try {
+        await api("/api/comptes/" + c.id, {actif: !c.actif}, "PATCH");
+        chargerComptes();
+      } catch (e) { toast("Échec : " + e.message); }
+    });
+    f.appendChild(sus);
+
+    const sup = neud("button", "danger", "Supprimer");
+    sup.type = "button";
+    sup.addEventListener("click", async () => {
+      if (!confirm("Supprimer le compte « " + (c.nom || c.identifiant) + " » ?")) return;
+      try {
+        await api("/api/comptes/" + c.id, null, "DELETE");
+        toast("Compte supprimé");
+        chargerComptes();
+      } catch (e) { toast("Échec : " + e.message); }
+    });
+    f.appendChild(sup);
+    d.appendChild(f);
+    g.appendChild(d);
+  });
+}
+
+function peindreNeuf(){
+  const z = $("#neuf-compte");
+  z.innerHTML = "";
+  const ident = document.createElement("input");
+  ident.placeholder = "identifiant (sans espace)";
+  ident.autocapitalize = "off";
+  const nom = document.createElement("input");
+  nom.placeholder = "son nom";
+  const mdp = document.createElement("input");
+  mdp.type = "password";
+  mdp.placeholder = "mot de passe (8 caractères min.)";
+  mdp.autocomplete = "new-password";
+  const role = document.createElement("select");
+  (E.roles.length ? E.roles : ["sourceur", "photographe", "patron"]).forEach(r => {
+    const o = document.createElement("option");
+    o.value = r; o.textContent = r;
+    role.appendChild(o);
+  });
+  const go = neud("button", "primaire", "Créer le compte");
+  go.type = "button";
+  go.addEventListener("click", async () => {
+    go.disabled = true;
+    try {
+      await api("/api/comptes", {identifiant: ident.value.trim(), nom: nom.value.trim(),
+                                 mot_de_passe: mdp.value, role: role.value});
+      /* Le mot de passe ne reste pas à l'écran après usage. */
+      mdp.value = ""; ident.value = ""; nom.value = "";
+      toast("Compte créé");
+      chargerComptes();
+    } catch (e) { toast("Échec : " + e.message); }
+    go.disabled = false;
+  });
+  z.append(ident, nom, mdp, role, go);
+  z.appendChild(neud("small", null,
+    "Le mot de passe n’est jamais conservé en clair : seule son empreinte "
+    + "est gardée. Vous ne pourrez pas le relire — seulement le remplacer."));
+}
+
+/* --- Les dates qu'on tient ------------------------------------------------
+   Le message part dans un groupe WhatsApp. On l'ouvre et on y colle le
+   texte ; c'est Julien qui appuie sur Entree, parce qu'un message de groupe
+   se voit par tout le monde et ne se reprend pas. */
+/* --- Vos sorties ---------------------------------------------------------
+   Cette section lisait les tournois dont la FICHE avait été validée, ce qui
+   n’a rien à voir avec les dates qu’on tient : elle affichait quarante
+   cartes dont trente-six que Julien ne couvre pas, et aucune de celles
+   qu’il couvre. Elle lit maintenant son calendrier, la seule vraie source.
+
+   Et elle groupe par jour et par lieu : quatre « Shoot » le même matin au
+   stade de Brulat, c’est un déplacement et un photographe à trouver. */
+async function chargerSorties(){
+  const g = $("#dates");
+  let d;
+  try { d = await api("/api/equipe/dates?jours=200", null); }
+  catch (e) {
+    g.innerHTML = "";
+    g.appendChild(neud("div", "vide",
+      "Les sorties ne se chargent pas (" + e.message + "). "
+      + "Si le CRM vient d’être mis à jour, relancez-le."));
+    return;
+  }
+  E.sorties = d.jours || [];
+  E.photographes = d.equipe || [];
+  E.calErreur = d.erreur || null;
+  E.ignorees = d.ignorees || 0;
+  peindreSorties();
+}
+
+const MOIS_NOMS = ["janvier", "février", "mars", "avril", "mai", "juin",
+  "juillet", "août", "septembre", "octobre", "novembre", "décembre"];
+const JOURS_NOMS = ["lun", "mar", "mer", "jeu", "ven", "sam", "dim"];
+
+function peindreSorties(){
+  const g = $("#dates");
+  g.innerHTML = "";
+  const l = E.sorties || [];
+  const sans = l.filter(s => !s.pourvu).length;
+  $("#cpt-dates").textContent = l.length
+    ? l.length + (l.length > 1 ? " sorties" : " sortie")
+      + (sans ? " · " + sans + " sans personne" : " · tout est couvert")
+    : "";
+  if (E.calErreur) {
+    $("#mois-tete").hidden = true; $("#cal").hidden = true;
+    g.appendChild(neud("div", "vide", "Calendrier illisible : " + E.calErreur));
+    return;
+  }
+  if (!l.length) {
+    $("#mois-tete").hidden = true; $("#cal").hidden = true;
+    g.appendChild(neud("div", "vide", "Aucune sortie à venir."));
+    return;
+  }
+  /* Le mois affiché : celui de la première sortie, tant qu’on n’a pas
+     tourné les pages. */
+  if (!E.mois) {
+    const p = new Date(l[0].jour + "T12:00:00");
+    E.mois = [p.getFullYear(), p.getMonth()];
+  }
+  peindreCalendrier();
+  peindreJourChoisi();
+}
+
+function peindreCalendrier(){
+  const [an, mois] = E.mois;
+  const tete = $("#mois-tete"), cal = $("#cal");
+  tete.hidden = false; cal.hidden = false;
+  tete.innerHTML = ""; cal.innerHTML = "";
+
+  const avant = neud("button", null, "‹");
+  avant.type = "button";
+  avant.addEventListener("click", () => { glisserMois(-1); });
+  const apres = neud("button", null, "›");
+  apres.type = "button";
+  apres.addEventListener("click", () => { glisserMois(1); });
+  tete.appendChild(avant);
+  tete.appendChild(neud("h3", null, MOIS_NOMS[mois] + " " + an));
+  tete.appendChild(apres);
+
+  JOURS_NOMS.forEach(n => cal.appendChild(neud("div", "nom-j", n)));
+
+  /* La grille commence au lundi de la semaine du 1er. */
+  const premier = new Date(an, mois, 1);
+  const decalage = (premier.getDay() + 6) % 7;
+  const debut = new Date(an, mois, 1 - decalage);
+  const auj = new Date(); auj.setHours(12, 0, 0, 0);
+
+  const parJour = new Map();
+  (E.sorties || []).forEach(s => {
+    if (!parJour.has(s.jour)) parJour.set(s.jour, []);
+    parJour.get(s.jour).push(s);
+  });
+
+  for (let i = 0; i < 42; i++) {
+    const d = new Date(debut.getFullYear(), debut.getMonth(), debut.getDate() + i);
+    const iso = d.getFullYear() + "-" + String(d.getMonth() + 1).padStart(2, "0")
+              + "-" + String(d.getDate()).padStart(2, "0");
+    const dedans = d.getMonth() === mois;
+    const c = neud("div", "case" + (dedans ? "" : " hors")
+      + (iso === isoDuJour(auj) ? " auj" : "")
+      + (iso === E.jourChoisi ? " choisi" : ""));
+    c.appendChild(neud("div", "n", String(d.getDate())));
+    (parJour.get(iso) || []).forEach(s => {
+      /* Sur la pastille, ce qui identifie la sortie : le lieu quand on l’a,
+         sinon le nom du shoot. « 1 shoot(s) » ne dit rien. */
+      const quoi = s.lieu || s.ville || nomsCourts(s)[0]
+                 || (s.combien + " shoots");
+      const b = neud("button",
+        "puce " + (s.pourvu ? "ok" : s.cherche ? "cherche" : "vide"),
+        (s.pourvu ? "✓ " : "") + quoi
+        + (s.combien > 1 ? " ·" + s.combien : ""));
+      b.type = "button";
+      b.title = s.combien + (s.combien > 1 ? " shoots" : " shoot")
+        + (s.pourvu ? " · " + s.noms.join(", ") : s.cherche ? " · on cherche" : " · personne");
+      b.addEventListener("click", () => {
+        E.jourChoisi = (E.jourChoisi === iso) ? null : iso;
+        peindreCalendrier(); peindreJourChoisi();
+      });
+      c.appendChild(b);
+    });
+    cal.appendChild(c);
+  }
+}
+
+function isoDuJour(d){
+  return d.getFullYear() + "-" + String(d.getMonth() + 1).padStart(2, "0")
+       + "-" + String(d.getDate()).padStart(2, "0");
+}
+
+function glisserMois(n){
+  const [an, mois] = E.mois;
+  const d = new Date(an, mois + n, 1);
+  E.mois = [d.getFullYear(), d.getMonth()];
+  peindreCalendrier();
+}
+
+/* Sous la grille : la carte complète du jour cliqué, dans le dessin de
+   Repérage. Le calendrier sert à voir, la carte à agir. */
+function peindreJourChoisi(){
+  const g = $("#dates");
+  g.innerHTML = "";
+  const l = (E.sorties || []).filter(s => !E.jourChoisi || s.jour === E.jourChoisi);
+  if (!E.jourChoisi) {
+    const sans = l.filter(s => !s.pourvu);
+    if (!sans.length) {
+      g.appendChild(neud("div", "vide",
+        "Tout est couvert. Cliquez un jour pour en revoir le détail."));
+      return;
+    }
+    g.appendChild(neud("div", "vide",
+      "Les " + sans.length + " sorties sans personne, les plus proches d’abord. "
+      + "Cliquez un jour du calendrier pour n’en voir qu’une."));
+    sans.slice(0, 6).forEach(s => g.appendChild(ligneSortie(s)));
+    return;
+  }
+  l.forEach(s => g.appendChild(ligneSortie(s)));
+  if (E.ignorees) {
+    g.appendChild(neud("div", "vide",
+      E.ignorees + " date(s) écartée(s) — les cours qui reviennent toutes "
+      + "les semaines ne sont pas des sorties à pourvoir."));
+  }
+}
+
+/* Le sport se lit dans le nom du shoot : « Shoot U9 — Brulat » est du foot,
+   « MMA – Cours du soir » du combat. Le même repère visuel que dans
+   Repérage, pour ne pas avoir à relire le titre en entier. */
+const PICTOS = [
+  [/voile|optimist|catamaran|hobie|r[ée]gate|nautique/i, "⛵", "Voile"],
+  [/aviron|rame|yole/i, "🚣", "Aviron"],
+  [/badmi/i, "🏸", "Badminton"],
+  [/volley/i, "🏐", "Volley"],
+  [/basket/i, "🏀", "Basket"],
+  [/hand/i, "🤾", "Handball"],
+  [/rugby/i, "🏉", "Rugby"],
+  [/tennis/i, "🎾", "Tennis"],
+  [/mma|boxe|lutte|judo|karat|combat/i, "🥊", "Combat"],
+  [/gym|agr[èe]s/i, "🤸", "Gymnastique"],
+  [/danse/i, "💃", "Danse"],
+  [/natation|piscine/i, "🏊", "Natation"],
+  [/escalade/i, "🧗", "Escalade"],
+  [/[ée]quit|cheval|poney/i, "🏇", "Équitation"],
+  [/studio|portrait|shooting/i, "📸", "Studio"],
+  [/shoot|foot|u\d{1,2}|seniors/i, "⚽", "Football"],
+];
+
+function picto(s){
+  const texte = (s.shoots || []).map(x => x.nom).join(" ") + " " + (s.lieu || "");
+  for (const [rx, emo, nom] of PICTOS) if (rx.test(texte)) return [emo, nom];
+  return ["🏆", "Sport à préciser"];
+}
+
+function ligneSortie(s){
+  const c = neud("div", "fiche sortie " + (s.pourvu ? "ok" : "vide"));
+
+  c.appendChild(neud("div", "f-source", "Calendrier SnapActions"));
+
+  const [emo, nomSport] = picto(s);
+  const titre = neud("div", "f-club");
+  const pic = neud("span", "f-sport", emo);
+  pic.title = nomSport;
+  titre.append(pic, document.createTextNode(s.lieu || s.ville || "Lieu non précisé"));
+  c.appendChild(titre);
+  const courts = nomsCourts(s);
+  c.appendChild(neud("div", "f-tournoi", s.combien > 1
+    ? s.combien + " shoots : " + courts.join(", ")
+    : courts[0] || ""));
+
+  const quand = neud("div", "f-quand");
+  const d = neud("span", "f-date" + (s.jours == null ? ""
+    : s.jours <= 7 ? " urgent" : s.jours <= 30 ? " bientot" : ""),
+    s.quand || s.jour || "");
+  if (s.jours != null && s.jours >= 0) {
+    d.appendChild(neud("i", "f-reste", s.jours === 0 ? "aujourd’hui"
+      : s.jours === 1 ? "demain" : "J‑" + s.jours));
+  }
+  quand.appendChild(d);
+  if (s.ville && s.ville !== s.lieu) quand.appendChild(neud("span", "f-ou", s.ville));
+  c.appendChild(quand);
+
+  /* Qui y va : la réponse que cet écran existe pour donner. En vert quand
+     c’est réglé, en violet quand le sourceur cherche, et rien à cacher
+     quand personne n’y va — c’est là qu’il faut agir. */
+  if (s.pourvu) {
+    const b = neud("div", "f-booke");
+    b.appendChild(neud("b", null, "✓ " + s.noms.join(", ")));
+    b.appendChild(neud("span", null, s.combien > 1
+      ? "les " + s.combien + " shoots sont couverts" : "c’est couvert"));
+    c.appendChild(b);
+  } else if (s.cherche) {
+    const p = neud("div", "f-pris");
+    p.appendChild(neud("b", null, "On cherche"));
+    p.appendChild(neud("span", null,
+      (sonNom() || "Le sourceur") + " cherche un photographe sur place"));
+    c.appendChild(p);
+  }
+
+  const paves = neud("div", "f-paves");
+  const dist = neud("div", "f-dist " + (s.km == null ? "inconnu"
+    : s.km <= 60 ? "proche" : s.km <= 120 ? "correct"
+    : s.km <= 250 ? "loin" : "hors"));
+  dist.appendChild(neud("div", "f-km", s.km == null ? "Distance inconnue"
+                                                    : s.km + " km"));
+  if (s.minutes) dist.appendChild(neud("div", "f-min", s.minutes + " min"));
+  dist.appendChild(neud("div", "f-verdict", s.km == null ? "à vérifier"
+    : s.km <= 60 ? "à côté" : s.km <= 120 ? "correct"
+    : s.km <= 250 ? "loin" : "hors secteur"));
+  paves.appendChild(dist);
+  c.appendChild(paves);
+
+  const detail = neud("div", "detail");
+  remplirSortie(detail, s);
+  c.appendChild(detail);
+  return c;
+}
+
+function remplirSortie(zone, s){
+  s.shoots.forEach(sh => {
+    const l = neud("div", "shoot");
+    l.appendChild(neud("span", "h", sh.debut ? String(sh.debut).slice(11, 16) : "—"));
+    l.appendChild(neud("div", "nom", sh.nom));
+
+    const sel = document.createElement("select");
+    const ajout = (v, texte, choisi) => {
+      const o = document.createElement("option");
+      o.value = v; o.textContent = texte;
+      if (choisi) o.selected = true;
+      sel.appendChild(o);
+    };
+    ajout("", "— personne —", !sh.qui && sh.etat !== "cherche");
+    (E.photographes || []).forEach(p =>
+      ajout("t" + p.id, p.name, sh.team_id === p.id));
+    ajout("cherche", "on cherche…", sh.etat === "cherche");
+    ajout("ignore", "écarter (cours régulier)", false);
+    sel.addEventListener("change", async () => {
+      const v = sel.value;
+      const charge = {uid: sh.uid, jour: s.jour, titre: sh.nom};
+      if (!v) charge.etat = "rien";
+      else if (v === "cherche") charge.etat = "cherche";
+      else if (v === "ignore") charge.etat = "ignore";
+      else { charge.etat = "pris"; charge.team_id = Number(v.slice(1)); }
+      try {
+        await api("/api/equipe/dates/qui", charge);
+        toast(v === "ignore" ? "Écartée" : !v ? "Remis à personne" : "Noté");
+        chargerSorties();
+      } catch (e) { toast("Échec : " + e.message); }
+    });
+    l.appendChild(sel);
+    zone.appendChild(l);
+  });
+
+  const f = neud("div", "faire-j");
+  const b = neud("button", "primaire", "✎ Appeler le groupe");
+  b.type = "button";
+  b.title = "Écrit l’appel pour cette sortie et l’ouvre dans le groupe WhatsApp";
+  b.addEventListener("click", () => ecrireAppel(s, b, zone));
+  f.appendChild(b);
+
+  /* Pas de « demander au sourceur » ici : une date déjà bookée se couvre
+     avec les équipiers en place. Le sourceur, lui, intervient AVANT — sur
+     les cartes de Repérage, pour dire si une équipe est possible là-bas
+     avant qu’on contacte l’organisateur. */
+  zone.appendChild(f);
+}
+
+/* « Shoot U9 — Brulat, Shoot U11F — Brulat, … » : le lieu est déjà écrit à
+   côté, le répéter quatre fois ne dit rien de plus. */
+function nomsCourts(s){
+  const lieu = (s.lieu || s.ville || "").trim().toLowerCase();
+  return (s.shoots || []).map(x => {
+    const n = (x.nom || "").trim();
+    const bout = n.split("—").pop().trim().toLowerCase();
+    return bout && lieu.includes(bout) && n.includes("—")
+      ? n.slice(0, n.lastIndexOf("—")).trim() : n;
+  }).filter(Boolean);
+}
+
+/* Le texte de l’appel. Il s’écrivait côté serveur à partir d’un tournoi ;
+   une sortie du calendrier n’en a pas. Trois lignes suffisent : quand, où,
+   quoi — c’est ce qu’un photographe a besoin de lire pour répondre oui. */
+function motDAppel(s){
+  const noms = nomsCourts(s);
+  const l1 = [s.quand || s.jour, s.lieu || s.ville].filter(Boolean).join(" — ");
+  const trajet = s.minutes ? " (" + s.minutes + " min de Cannes)" : "";
+  const l2 = noms.length > 1
+    ? noms.length + " shoots : " + noms.join(", ")
+    : (noms[0] || "");
+  return [l1 + trajet, l2, "Qui est dispo ?"].filter(Boolean).join("\n");
+}
+
+async function ecrireAppel(s, bouton, carte){
+  if (carte.querySelector(".mot")) return;
+  bouton.disabled = true;
+  const avant = bouton.textContent;
+  bouton.textContent = "J’écris…";
+  try {
+    const z = neud("div", "mot");
+    const ta = document.createElement("textarea");
+    ta.rows = 6;
+    ta.value = motDAppel(s);
+    z.appendChild(ta);
+
+    const ligne = neud("div", "ligne");
+    const sel = document.createElement("select");
+    (E.crews || []).forEach(cr => {
+      const o = document.createElement("option");
+      o.value = cr.id;
+      o.textContent = cr.name;
+      if (/g[ée]n[ée]ral/i.test(cr.name || "")) o.selected = true;
+      sel.appendChild(o);
+    });
+    ligne.appendChild(sel);
+
+    const go = neud("button", "primaire", "▶ Ouvrir le groupe et coller");
+    go.type = "button";
+    go.title = "Ouvre le groupe dans WhatsApp et y colle le texte. "
+      + "C’est vous qui appuyez sur Entrée.";
+    go.addEventListener("click", async () => {
+      go.disabled = true;
+      const mot = go.textContent;
+      go.textContent = "J’ouvre WhatsApp…";
+      try {
+        const r = await api("/api/equipe/groupe", {
+          crew_id: sel.value, corps: ta.value,
+          titre: (s.shoots[0] || {}).nom || (s.lieu || s.ville),
+          starts_at: s.jour,
+          lieu: s.lieu === s.ville ? s.lieu : [s.lieu, s.ville].filter(Boolean).join(", "),
+        });
+        go.textContent = "✓ Collé dans « " + r.groupe + " »";
+        toast("Collé dans le groupe — relisez, puis appuyez sur Entrée");
+      } catch (err) {
+        go.disabled = false; go.textContent = mot;
+        toast("Échec : " + err.message);
+      }
+    });
+    ligne.appendChild(go);
+
+    const cp = neud("button", null, "Copier");
+    cp.type = "button";
+    cp.addEventListener("click", async () => {
+      try { await navigator.clipboard.writeText(ta.value); toast("Copié"); }
+      catch (e) { ta.select(); toast("Sélectionné — Cmd+C"); }
+    });
+    ligne.appendChild(cp);
+    z.appendChild(ligne);
+    z.appendChild(neud("small", null,
+      "Rien ne part tout seul : le texte est collé dans le groupe, "
+      + "vous le relisez et vous appuyez sur Entrée."));
+    carte.appendChild(z);
+  } catch (e) {
+    toast("Échec : " + e.message);
+  } finally {
+    bouton.disabled = false;
+    bouton.textContent = avant;
+  }
+}
+
+/* --- Les gros plateaux ----------------------------------------------------
+   Le sourceur est une personne : l'envoi WhatsApp direct marche, comme
+   partout ailleurs. On coche les evenements, on relit, on envoie. */
+function peindreSourceur(){
+  const b = $("#barre-sourceur");
+  b.innerHTML = "";
+  b.appendChild(neud("span", "dit", "Le sourceur :"));
+  const sel = document.createElement("select");
+  const vide = document.createElement("option");
+  vide.value = ""; vide.textContent = "— personne —";
+  sel.appendChild(vide);
+  (E.team || []).forEach(p => {
+    const o = document.createElement("option");
+    o.value = p.id;
+    o.textContent = p.name + (p.phone_fmt ? " · " + p.phone_fmt : " · sans numéro");
+    if (E.sourceur && p.id === E.sourceur.id) o.selected = true;
+    sel.appendChild(o);
+  });
+  sel.addEventListener("change", async () => {
+    try {
+      const d = await api("/api/equipe/sourceur", {team_id: sel.value || null});
+      E.sourceur = d.sourceur;
+      toast(d.sourceur ? "Sourceur : " + d.sourceur.name : "Sourceur retiré");
+      peindreSourceur();
+    } catch (e) { toast("Échec : " + e.message); }
+  });
+  b.appendChild(sel);
+
+  if (E.sourceur && !E.sourceur.phone) {
+    b.appendChild(neud("span", "dit",
+      "⚠ pas de numéro sur sa fiche — l’envoi WhatsApp ne passera pas."));
+  }
+
+  const go = neud("button", "primaire", "✎ Écrire la demande");
+  go.type = "button";
+  go.addEventListener("click", ecrireDemande);
+  b.appendChild(go);
+
+  /* Confier la liste a un compte : elle apparait dans SON espace, il la
+     retrouve de chez lui sans fouiller une conversation WhatsApp. */
+  const avecCompte = (E.comptesActifs || []).filter(c => c.role !== "patron");
+  if (avecCompte.length) {
+    const sel = document.createElement("select");
+    const vide = document.createElement("option");
+    vide.value = ""; vide.textContent = "— confier à —";
+    sel.appendChild(vide);
+    avecCompte.forEach(c => {
+      const o = document.createElement("option");
+      o.value = c.id;
+      o.textContent = (c.nom || c.identifiant) + " · " + c.role;
+      sel.appendChild(o);
+    });
+    b.appendChild(sel);
+    const conf = neud("button", null, "Confier");
+    conf.type = "button";
+    conf.title = "Les événements cochés apparaîtront dans son espace";
+    conf.addEventListener("click", async () => {
+      const ids = Array.from(E.choisis);
+      if (!sel.value) { toast("Choisissez à qui"); return; }
+      if (!ids.length) { toast("Cochez d’abord des événements"); return; }
+      conf.disabled = true;
+      try {
+        const r = await api("/api/equipe/confier", {compte_id: sel.value, ids: ids});
+        toast(r.confies + " événement(s) dans l’espace de " + (r.a || "ce compte"));
+        E.choisis.clear();
+        charger();
+      } catch (e) { toast("Échec : " + e.message); }
+      conf.disabled = false;
+    });
+    b.appendChild(conf);
+  }
+}
+
+function peindreGros(){
+  const g = $("#gros");
+  g.innerHTML = "";
+  const loin = E.gros.filter(t => /sourceur/i.test(String(t.source || ""))).length;
+  $("#cpt-gros").textContent = E.gros.length
+    ? E.gros.length + " à confier" + (loin ? " · dont " + loin + " du Nord et de Belgique" : "")
+    : "";
+  if (!E.gros.length) {
+    g.appendChild(neud("div", "vide",
+      "Aucun gros plateau en attente. La veille en remontera."));
+    return;
+  }
+  E.gros.forEach(t => {
+    const c = neud("div", "date" + (E.choisis.has(t.id) ? " choisie" : ""));
+    c.appendChild(neud("h3", null, t.name || "Sans nom"));
+    c.appendChild(neud("p", "ou", [t.quand, t.ou, t.sport].filter(Boolean).join(" · ")));
+
+    const e = neud("div", "etiqs");
+    if (t.nb_equipes) e.appendChild(neud("span", "etiq gros", t.nb_equipes + " équipes"));
+    if (t.loin) e.appendChild(neud("span", "etiq loin",
+      Math.round(t.trajet_min / 60) + " h de route"));
+    else if (t.trajet_min != null) e.appendChild(neud("span", "etiq", t.trajet_min + " min"));
+    c.appendChild(e);
+
+    const f = neud("div", "faire");
+    const ch = neud("button", E.choisis.has(t.id) ? "primaire" : null,
+      E.choisis.has(t.id) ? "✓ Dans la demande" : "+ Ajouter à la demande");
+    ch.type = "button";
+    ch.addEventListener("click", () => {
+      if (E.choisis.has(t.id)) E.choisis.delete(t.id); else E.choisis.add(t.id);
+      peindreGros();
+    });
+    f.appendChild(ch);
+    if (t.url) {
+      const a = neud("a", null, "L’annonce ↗");
+      a.href = t.url; a.target = "_blank"; a.rel = "noopener";
+      f.appendChild(a);
+    }
+    c.appendChild(f);
+    g.appendChild(c);
+  });
+}
+
+async function ecrireDemande(){
+  const ids = Array.from(E.choisis);
+  if (!ids.length) { toast("Cochez d’abord des événements"); return; }
+  const z = $("#mot-sourceur");
+  z.hidden = false;
+  z.innerHTML = "";
+  z.appendChild(neud("small", null, "J’écris…"));
+  try {
+    const d = await api("/api/equipe/sourceur/message", {ids: ids});
+    z.innerHTML = "";
+    const ta = document.createElement("textarea");
+    ta.rows = Math.min(18, 6 + ids.length * 2);
+    ta.value = d.corps || "";
+    z.appendChild(ta);
+
+    const ligne = neud("div", "ligne");
+    const qui = E.sourceur;
+    const go = neud("button", "primaire",
+      qui && qui.phone ? "▶ Envoyer à " + qui.name : "▶ Envoyer");
+    go.type = "button";
+    go.disabled = !(qui && qui.phone);
+    go.title = qui && qui.phone
+      ? "Part vraiment sur WhatsApp, à " + (qui.phone_fmt || qui.phone)
+      : "Choisissez un sourceur qui a un numéro";
+    go.addEventListener("click", async () => {
+      go.disabled = true;
+      const mot = go.textContent;
+      go.textContent = "Envoi…";
+      try {
+        const r = await api("/api/equipe/sourceur/envoyer",
+          {ids: ids, corps: ta.value});
+        toast("Parti à " + r.a + " — " + r.confies + " événement(s) confié(s)");
+        E.choisis.clear();
+        z.hidden = true;
+        charger();
+      } catch (err) {
+        go.disabled = false; go.textContent = mot;
+        toast("Échec : " + err.message);
+      }
+    });
+    ligne.appendChild(go);
+
+    const cp = neud("button", null, "Copier");
+    cp.type = "button";
+    cp.addEventListener("click", async () => {
+      try { await navigator.clipboard.writeText(ta.value); toast("Copié"); }
+      catch (e) { ta.select(); toast("Sélectionné — Cmd+C"); }
+    });
+    ligne.appendChild(cp);
+
+    const non = neud("button", null, "Annuler");
+    non.type = "button";
+    non.addEventListener("click", () => { z.hidden = true; });
+    ligne.appendChild(non);
+    z.appendChild(ligne);
+    z.appendChild(neud("small", null,
+      "Relisez avant d’envoyer. Les événements envoyés quittent la liste."));
+    ta.scrollIntoView({block: "center", behavior: "smooth"});
+  } catch (e) {
+    z.innerHTML = "";
+    z.appendChild(neud("small", null, "Échec : " + e.message));
+  }
+}
+
+/* --- L’accès de dehors ---------------------------------------------------
+   Julien ne doit pas avoir à ouvrir le Terminal pour qu’un sourceur puisse
+   travailler de chez lui. Un bouton, et les trois gestes partent ensemble,
+   dans le seul ordre qui protège la base : serrure, vérification, tunnel.
+   Le serveur impose cet ordre de son côté — ce bouton ne fait que le
+   demander. */
+async function chargerTunnel(){
+  try { E.tunnel = await api("/api/tunnel", null); }
+  catch (e) { E.tunnel = null; }
+  peindreAcces();
+}
+
+function sonNom(){
+  const l = (E.comptes || []).filter(c => c.role !== "patron" && c.actif);
+  if (l.length === 1) return l[0].nom || l[0].identifiant;
+  return null;
+}
+
+function peindreAcces(){
+  const z = $("#acces");
+  const t = E.tunnel;
+  const qui = sonNom();
+  $("#titre-acces").textContent = qui ? ("L’accès de " + qui) : "Son accès";
+  z.innerHTML = "";
+  if (!t) {
+    z.appendChild(neud("p", "dit", "État de l’accès indisponible."));
+    return;
+  }
+  z.className = "acces" + (t.en_marche ? " ouvert" : "");
+
+  const etat = neud("div", "etat");
+  etat.appendChild(neud("span", "pastille"));
+  etat.appendChild(neud("b", null, t.en_marche
+    ? (qui ? qui + " peut se connecter" : "Ouvert de l’extérieur")
+    : "Fermé — personne de l’extérieur n’entre"));
+  if (t.en_marche && t.depuis) {
+    etat.appendChild(neud("small", null, "depuis " + t.depuis.slice(11, 16)));
+  }
+  z.appendChild(etat);
+
+  const faire = neud("div", "faire");
+  if (!t.en_marche) {
+    const patron = (E.comptes || []).some(c => c.role === "patron" && c.actif);
+    const b = neud("button", "primaire", qui ? "Ouvrir à " + qui : "Ouvrir l’accès");
+    b.type = "button";
+    b.disabled = !patron;
+    b.addEventListener("click", () => ouvrirAcces(b, qui, !t.installe));
+    faire.appendChild(b);
+    if (!patron) {
+      z.appendChild(neud("p", "alerte",
+        "⚠ Créez d’abord VOTRE compte en « patron » plus bas : sans lui, le CRM "
+        + "demanderait un mot de passe que personne n’aurait."));
+    }
+  } else {
+    /* Relancer le CRM sans passer par le Terminal. Depuis que la relance
+       lâche le tunnel au lieu de le tuer, l’accès du sourceur y survit :
+       l’adresse reste la même, il n’y a rien à lui renvoyer. */
+    const rl = neud("button", null, "↻ Relancer le CRM");
+    rl.type = "button";
+    rl.title = "Recharge le code. Le tunnel reste ouvert, l’adresse ne change pas.";
+    rl.addEventListener("click", async () => {
+      rl.disabled = true; rl.textContent = "Je relance…";
+      try { await api("/api/redemarrer", {}); } catch (e) { /* il part quand même */ }
+      setTimeout(() => location.reload(), 3500);
+    });
+    faire.appendChild(rl);
+
+    const f = neud("button", null, "Fermer l’accès");
+    f.type = "button";
+    f.addEventListener("click", async () => {
+      f.disabled = true; f.textContent = "je ferme…";
+      try {
+        E.tunnel = await api("/api/tunnel/fermer", {});
+        toast("Accès fermé — le CRM n’écoute plus que ce Mac");
+      } catch (e) { toast("Échec : " + e.message); }
+      peindreAcces(); chargerComptes();
+    });
+    faire.appendChild(f);
+  }
+  z.appendChild(faire);
+
+  if (t.en_marche && t.adresse) {
+    const lien = t.adresse + "/espace.html";
+    const bloc = neud("div", "lien");
+    bloc.appendChild(neud("code", null, lien));
+    const l2 = neud("div", "faire");
+    const cp = neud("button", null, "Copier le lien");
+    cp.type = "button";
+    cp.addEventListener("click", async () => {
+      try { await navigator.clipboard.writeText(lien); toast("Lien copié"); }
+      catch (e) { toast("Copie refusée — sélectionnez le lien"); }
+    });
+    l2.appendChild(cp);
+    const tout = neud("button", null, "Copier avec l’identifiant");
+    tout.type = "button";
+    tout.addEventListener("click", async () => {
+      const id = (E.comptes || []).filter(c => c.role !== "patron" && c.actif)
+        .map(c => c.identifiant)[0] || "";
+      const mot = lien + (id ? "\nIdentifiant : " + id : "")
+        + "\nMot de passe : celui que je t’ai donné";
+      try { await navigator.clipboard.writeText(mot); toast("Copié"); }
+      catch (e) { toast("Copie refusée"); }
+    });
+    l2.appendChild(tout);
+    bloc.appendChild(l2);
+    z.appendChild(bloc);
+    z.appendChild(neud("p", "dit",
+      "Cette adresse est à usage unique : elle change à chaque ouverture. "
+      + "Ce Mac doit rester allumé et le CRM lancé — c’est lui qui répond, "
+      + "le tunnel n’est qu’un tuyau."
+      + (t.dehors ? " Ce tunnel-ci n’est pas tenu par cette page — lancé à la "
+         + "main, ou repris après un redémarrage du CRM. Le bouton ci-dessus "
+         + "le ferme quand même." : "")));
+  } else if (t.en_marche) {
+    z.appendChild(neud("p", "alerte",
+      "⚠ Un tunnel tourne mais je n’arrive pas à lire son adresse. "
+      + "Elle est dans la fenêtre du Terminal qui l’a lancé. Dans le doute, "
+      + "fermez l’accès et rouvrez-le ici."));
+  } else if (!t.en_marche) {
+    z.appendChild(neud("p", "dit", t.installe
+      ? "En ouvrant : tout le CRM demandera un mot de passe, même ici. "
+        + "C’est voulu — derrière un tunnel, une requête venue du monde entier "
+        + "se présente comme venant de ce Mac."
+      : "Premier clic : le CRM installera cloudflared (l’outil de tunnel de "
+        + "Cloudflare) dans outils/bin. Rien n’est installé dans le système, "
+        + "aucun mot de passe du Mac n’est demandé."));
+  }
+}
+
+async function ouvrirAcces(bouton, qui, aInstaller){
+  const etapes = "Ce qui va se passer, dans cet ordre :\n\n"
+    + "1. la serrure — tout le CRM exigera un mot de passe, même depuis ce Mac\n"
+    + "2. la vérification — j’interroge le CRM sans mot de passe et j’exige un refus\n"
+    + "3. le tunnel — une adresse publique, valable le temps que ça tourne\n\n"
+    + (aInstaller
+        ? "Première fois : cloudflared sera téléchargé depuis le site officiel de "
+          + "Cloudflare (github.com/cloudflare/cloudflared) dans outils/bin.\n\n"
+        : "")
+    + "Si la serrure ne tient pas, rien ne s’ouvre.\n\n"
+    + "Assurez-vous de connaître le mot de passe de votre compte patron.";
+  if (!confirm(etapes)) return;
+  bouton.disabled = true;
+  bouton.textContent = aInstaller ? "j’installe puis j’ouvre…" : "j’ouvre…";
+  try {
+    E.tunnel = await api("/api/tunnel/ouvrir", {});
+    toast(qui ? qui + " peut se connecter" : "Accès ouvert");
+  } catch (e) {
+    toast("Échec : " + e.message);
+    alert("L’accès n’a pas été ouvert.\n\n" + e.message);
+  }
+  peindreAcces();
+  chargerComptes();
+}
+
+/* --- Ce qu’on a confié, et ce qu’il en a fait --------------------------- */
+async function chargerConfiees(){
+  try {
+    const d = await api("/api/equipe/confiees", null);
+    E.confiees = d.items || [];
+  } catch (e) { E.confiees = []; }
+  peindreConfiees();
+}
+
+function peindreConfiees(){
+  const z = $("#confiees");
+  z.innerHTML = "";
+  const l = E.confiees || [];
+  if (!l.length) {
+    z.appendChild(neud("p", "dit",
+      "Rien de confié pour l’instant. Plus bas, dans « Gros plateaux à "
+      + "confier », le bouton Confier les dépose dans son espace."));
+    return;
+  }
+  const par = new Map();
+  l.forEach(m => {
+    const cle = m.compte_id;
+    if (!par.has(cle)) par.set(cle, []);
+    par.get(cle).push(m);
+  });
+  par.forEach(items => {
+    const qui = items[0].qui || items[0].identifiant;
+    const reste = items.filter(m => !/trouv/i.test(m.status || "")).length;
+    z.appendChild(neud("p", "pour", qui + " — " + items.length
+      + (items.length > 1 ? " missions" : " mission")
+      + (reste ? " · " + reste + " sans personne" : " · tout est pourvu")));
+    items.forEach(m => z.appendChild(ligneConfiee(m)));
+  });
+}
+
+function ligneConfiee(m){
+  const trouve = /trouv/i.test(m.status || "");
+  const l = neud("div", "l" + (trouve ? " ok" : ""));
+  l.appendChild(neud("span", "j", m.quand || "sans date"));
+  const q = neud("div", "q");
+  q.appendChild(neud("b", null, m.tournoi || m.title || "Mission"));
+  q.appendChild(neud("small", null,
+    [m.place || m.city, m.sport, m.nb_equipes ? m.nb_equipes + " équipes" : null]
+      .filter(Boolean).join(" · ")));
+  l.appendChild(q);
+  const rien = /rien/i.test(m.status || "");
+  l.appendChild(neud("span", "e" + (trouve ? " ok" : rien ? " rien" : ""),
+    trouve ? ("✓ " + (m.assigned || "pourvu"))
+    : rien ? "personne trouvé"
+    : /cours/i.test(m.status || "") ? "il cherche"
+    : "envoyé, pas de réponse"));
+  return l;
+}
+
+charger().catch(e => toast("Chargement impossible : " + e.message));
+chargerTunnel();
+chargerConfiees();
+</script>
+<script src="/nav.js"></script>
+<script src="/bitchat.js"></script>
+</body>
+</html>

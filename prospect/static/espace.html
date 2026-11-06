@@ -1,0 +1,443 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Mon espace — SnapActions</title>
+<link rel="stylesheet" href="/cartes.css">
+<style>
+/* L'ecran de ceux qui ne sont pas Julien. Il ne montre QUE leurs missions :
+   pas de menu, pas de clubs, pas de conversations. Le cloisonnement est fait
+   cote serveur — cet ecran n'a simplement rien d'autre a demander. */
+.boite{max-width:420px; margin:14vh auto 0; padding:26px 24px; border-radius:16px;
+  background:var(--card); border:1px solid var(--line)}
+.boite h1{margin:0 0 4px; font-size:21px; font-weight:650}
+.boite p.dit{margin:0 0 18px; color:var(--ink-3); font-size:14.5px}
+.boite label{display:block; margin:12px 0 5px; font-size:13.5px; color:var(--ink-2)}
+.boite input{width:100%; box-sizing:border-box; font:inherit; font-size:16px;
+  padding:11px 13px; border-radius:11px; background:var(--sunk); color:var(--ink);
+  border:1px solid var(--line)}
+.boite input:focus{outline:none; border-color:var(--green)}
+.boite button{width:100%; margin-top:18px; font:inherit; font-size:16px;
+  font-weight:650; padding:12px; border-radius:11px; cursor:pointer;
+  background:var(--green); border:1px solid var(--green); color:#fff}
+.boite button:disabled{opacity:.55; cursor:default}
+.boite .souci{margin-top:12px; color:var(--amber); font-size:14px}
+
+/* Le meme bloc que l'entree, mais pose dans la page au lieu de flotter
+   au milieu de l'ecran. */
+.boite.chg{margin:16px 0 0}
+.boite.chg button{margin-top:16px}
+.tete{display:flex; align-items:baseline; gap:12px; flex-wrap:wrap;
+  margin:0 0 4px}
+.tete h1{margin:0; font-size:21px; font-weight:650}
+.tete .qui{color:var(--ink-3); font-size:14px}
+.tete button{margin-left:auto; font:inherit; font-size:14px; padding:7px 13px;
+  border-radius:10px; cursor:pointer; background:var(--sunk); color:var(--ink-2);
+  border:1px solid var(--line)}
+
+.grille{display:grid; gap:12px; margin:18px 0 0;
+  grid-template-columns:repeat(auto-fill, minmax(330px, 1fr))}
+.mission{padding:15px 17px; border-radius:14px; background:var(--card);
+  border:1px solid var(--line)}
+.mission.faite{border-color:var(--green); background:var(--green-soft)}
+.mission h2{margin:0; font-size:16.5px; font-weight:650; line-height:1.3}
+.mission .ou{margin:4px 0 0; color:var(--ink-3); font-size:13.5px}
+.mission .etiqs{display:flex; gap:6px; flex-wrap:wrap; margin:9px 0 0}
+.etiq{font-size:12.5px; padding:3px 10px; border-radius:100px;
+  background:var(--sunk); border:1px solid var(--line); color:var(--ink-2)}
+.etiq.gros{border-color:var(--green); color:var(--green); font-weight:650}
+.mission .corps{margin:11px 0 0; padding:11px 13px; border-radius:11px;
+  background:var(--sunk); font-size:14px; line-height:1.5; white-space:pre-wrap;
+  max-height:220px; overflow:auto}
+.mission .faire{display:flex; gap:7px; flex-wrap:wrap; margin:12px 0 0}
+.mission button, .mission a{font:inherit; font-size:14px; padding:7px 13px;
+  border-radius:10px; cursor:pointer; text-decoration:none;
+  background:var(--sunk); color:var(--ink); border:1px solid var(--line)}
+.mission button.primaire{background:var(--green); border-color:var(--green); color:#fff}
+.reponse{flex:1 1 100%; margin-top:10px; display:none}
+.reponse.ouverte{display:block}
+.reponse input, .reponse textarea{width:100%; box-sizing:border-box; font:inherit;
+  font-size:15px; padding:10px 12px; border-radius:10px; margin-bottom:7px;
+  background:var(--card); color:var(--ink); border:1px solid var(--line)}
+.reponse textarea{resize:vertical}
+.vues{display:flex; gap:7px; margin:14px 0 0}
+.vues button{font:inherit; font-size:14.5px; padding:8px 15px; border-radius:10px;
+  cursor:pointer; background:var(--sunk); color:var(--ink-2);
+  border:1px solid var(--line)}
+.vues button.on{background:var(--green); border-color:var(--green); color:#fff;
+  font-weight:650}
+
+/* Le planning : ce qui arrive, mois par mois, dans l'ordre. D'un coup d'oeil,
+   ce qui approche et ce qui n'a encore personne — une liste de cartes ne
+   donne jamais cette vue-la. */
+.mois{margin:22px 0 0}
+.mois h3{margin:0 0 9px; font-size:14px; font-weight:650; letter-spacing:.04em;
+  text-transform:uppercase; color:var(--ink-3)}
+.ligne{display:flex; gap:14px; align-items:baseline; flex-wrap:wrap;
+  padding:11px 14px; border-radius:11px; background:var(--card);
+  border:1px solid var(--line); margin-bottom:7px}
+.ligne.faite{border-color:var(--green); background:var(--green-soft)}
+.ligne .jour{flex:0 0 100px; font-weight:650; font-size:14.5px}
+.ligne .quoi{flex:1 1 220px; min-width:0}
+.ligne .quoi b{display:block; font-size:15px; font-weight:600;
+  overflow:hidden; text-overflow:ellipsis; white-space:nowrap}
+.ligne .quoi small{color:var(--ink-3); font-size:13px}
+.ligne .etat{flex:0 0 auto; font-size:13px; padding:3px 11px; border-radius:100px;
+  background:var(--sunk); border:1px solid var(--line); color:var(--ink-2)}
+.ligne .etat.ok{border-color:var(--green); color:var(--green); font-weight:650}
+.ligne .etat.rien{border-color:var(--amber); color:var(--amber)}
+.ligne .dans{flex:0 0 auto; font-size:13px; color:var(--ink-3)}
+.vide{margin:18px 0 0; padding:16px; border-radius:13px; background:var(--sunk);
+  color:var(--ink-3); font-size:15px}
+.toast{position:fixed; left:50%; bottom:26px; transform:translateX(-50%);
+  background:var(--ink); color:var(--ground); padding:11px 18px; border-radius:100px;
+  font-size:15px; box-shadow:var(--lift); z-index:50}
+[hidden]{display:none !important}
+</style>
+<script>
+  try {
+    var t = localStorage.getItem('theme');
+    document.documentElement.dataset.theme = (t === 'light') ? 'light' : 'dark';
+  } catch (e) { document.documentElement.dataset.theme = 'dark'; }
+</script>
+<link rel="stylesheet" href="/bitchat.css">
+</head>
+<body>
+<div class="wrap">
+  <div id="connexion" hidden>
+    <div class="boite">
+      <h1>SnapActions</h1>
+      <p class="dit">Votre espace. Identifiez-vous pour voir vos missions.</p>
+      <form id="form">
+        <label for="ident">Identifiant</label>
+        <input id="ident" name="identifiant" autocomplete="username" autocapitalize="off" required>
+        <label for="mdp">Mot de passe</label>
+        <input id="mdp" name="mot_de_passe" type="password" autocomplete="current-password" required>
+        <button type="submit" id="go">Entrer</button>
+      </form>
+      <p class="souci" id="souci" hidden></p>
+    </div>
+  </div>
+
+  <div id="espace" hidden>
+    <div class="tete">
+      <h1>Mes missions</h1>
+      <span class="qui" id="qui"></span>
+      <button type="button" id="mon-mdp">Mon mot de passe</button>
+      <button type="button" id="sortir">Se déconnecter</button>
+    </div>
+
+    <!-- Changer son mot de passe soi-meme. Sans ca il faut le demander a
+         Julien, qui le dicte par message — et le message reste. -->
+    <div class="boite chg" id="chg" hidden>
+      <p class="dit">Choisissez-en un nouveau. Vous devrez vous reconnecter juste après.</p>
+      <form id="form-chg">
+        <label for="chg-actuel">Mot de passe actuel</label>
+        <input id="chg-actuel" type="password" autocomplete="current-password" required>
+        <label for="chg-neuf">Nouveau — huit caractères au moins</label>
+        <input id="chg-neuf" type="password" autocomplete="new-password" required>
+        <label for="chg-encore">Encore, pour être sûr</label>
+        <input id="chg-encore" type="password" autocomplete="new-password" required>
+        <button type="submit" id="chg-go">Changer</button>
+      </form>
+      <p class="souci" id="chg-souci" hidden></p>
+    </div>
+    <p class="chapeau" id="chapeau"></p>
+    <div class="vues" id="vues" hidden></div>
+    <div class="grille" id="liste"></div>
+    <div id="planning" hidden></div>
+  </div>
+</div>
+<div class="toast" id="toast" hidden></div>
+
+<script>
+function $(s){ return document.querySelector(s); }
+function neud(b, c, t){
+  const e = document.createElement(b);
+  if (c) e.className = c;
+  if (t != null) e.textContent = t;
+  return e;
+}
+function toast(m){
+  const t = $("#toast");
+  t.textContent = m; t.hidden = false;
+  clearTimeout(toast._t);
+  toast._t = setTimeout(() => { t.hidden = true; }, 3500);
+}
+async function api(url, corps, methode){
+  const r = await fetch(url, corps || methode ? {
+    method: methode || "POST",
+    headers: {"Content-Type": "application/json"},
+    body: corps ? JSON.stringify(corps) : undefined
+  } : undefined);
+  const d = await r.json().catch(() => ({}));
+  if (!r.ok) throw new Error(d.error || "refus");
+  return d;
+}
+
+/* --- Entrer ------------------------------------------------------------- */
+$("#form").addEventListener("submit", async ev => {
+  ev.preventDefault();
+  const go = $("#go"), souci = $("#souci");
+  souci.hidden = true;
+  go.disabled = true; go.textContent = "J’ouvre…";
+  try {
+    const d = await api("/api/connexion", {
+      identifiant: $("#ident").value.trim(),
+      mot_de_passe: $("#mdp").value
+    });
+    /* Le mot de passe ne traîne pas dans le champ après usage. */
+    $("#mdp").value = "";
+    /* Le patron, c'est Julien : il n'a pas de missions ici, il a tout le
+       CRM. Le laisser sur un espace vide en lui disant « rien pour
+       l'instant » donne l'impression que sa connexion n'a pas marché. */
+    if (d && d.compte && d.compte.role === "patron") {
+      location.href = "/";
+      return;
+    }
+    await charger();
+  } catch (e) {
+    souci.textContent = e.message;
+    souci.hidden = false;
+  }
+  go.disabled = false; go.textContent = "Entrer";
+});
+
+/* --- Son mot de passe, qu'il change sans demander à personne ---------- */
+$("#mon-mdp").addEventListener("click", () => {
+  const z = $("#chg");
+  z.hidden = !z.hidden;
+  $("#chg-souci").hidden = true;
+  if (!z.hidden) $("#chg-actuel").focus();
+});
+
+$("#form-chg").addEventListener("submit", async ev => {
+  ev.preventDefault();
+  const go = $("#chg-go"), souci = $("#chg-souci");
+  souci.hidden = true;
+  if ($("#chg-neuf").value !== $("#chg-encore").value) {
+    souci.textContent = "Les deux ne sont pas pareils.";
+    souci.hidden = false;
+    return;
+  }
+  go.disabled = true; go.textContent = "Je change…";
+  try {
+    await api("/api/espace/mot-de-passe", {
+      actuel: $("#chg-actuel").value,
+      nouveau: $("#chg-neuf").value
+    });
+    /* Rien ne traîne dans les champs, et on repart de l'écran d'entrée :
+       changer son mot de passe ferme toutes les sessions, celle-ci comprise. */
+    ["#chg-actuel", "#chg-neuf", "#chg-encore"].forEach(s => { $(s).value = ""; });
+    alert("Mot de passe changé. Reconnectez-vous avec le nouveau.");
+    location.reload();
+    return;
+  } catch (e) {
+    souci.textContent = e.message;
+    souci.hidden = false;
+  }
+  go.disabled = false; go.textContent = "Changer";
+});
+
+$("#sortir").addEventListener("click", async () => {
+  await api("/api/deconnexion", {}).catch(() => {});
+  location.reload();
+});
+
+/* --- Les missions ------------------------------------------------------- */
+async function charger(){
+  let d = null;
+  try { d = await api("/api/espace/missions", null, "GET"); }
+  catch (e) {
+    $("#connexion").hidden = false;
+    $("#espace").hidden = true;
+    return;
+  }
+  $("#connexion").hidden = true;
+  $("#espace").hidden = false;
+  $("#qui").textContent = d.compte.nom + " · " + d.compte.role;
+
+  E.items = d.items || [];
+  const aPourvoir = E.items.filter(m => !/trouv/i.test(m.status || "")).length;
+  $("#chapeau").textContent = E.items.length
+    ? (E.items.length + (E.items.length > 1 ? " missions" : " mission")
+       + (aPourvoir ? " · " + aPourvoir + " sans personne" : " · tout est pourvu"))
+    : "";
+  peindreVues();
+  peindre();
+}
+
+/* Deux façons de regarder la même liste. Les cartes pour traiter une mission ;
+   le planning pour voir ce qui arrive et ce qui n'a encore personne. */
+const E = {items: [], vue: "cartes"};
+
+function peindreVues(){
+  const v = $("#vues");
+  v.innerHTML = "";
+  v.hidden = !E.items.length;
+  if (!E.items.length) return;
+  [["cartes", "Les cartes"], ["planning", "Le planning"]].forEach(([cle, nom]) => {
+    const b = neud("button", cle === E.vue ? "on" : "", nom);
+    b.type = "button";
+    b.addEventListener("click", () => {
+      E.vue = cle;
+      try { localStorage.setItem("vue-espace", cle); } catch (e) {}
+      peindreVues(); peindre();
+    });
+    v.appendChild(b);
+  });
+}
+
+function peindre(){
+  const g = $("#liste"), pl = $("#planning");
+  g.innerHTML = ""; pl.innerHTML = "";
+  if (!E.items.length) {
+    g.hidden = false; pl.hidden = true;
+    g.appendChild(neud("div", "vide",
+      "Rien pour l’instant. Julien vous enverra les événements à pourvoir ici."));
+    return;
+  }
+  if (E.vue === "planning") {
+    g.hidden = true; pl.hidden = false; peindrePlanning(pl);
+  } else {
+    pl.hidden = true; g.hidden = false;
+    E.items.forEach(m => g.appendChild(carte(m)));
+  }
+}
+
+const MOIS = ["janvier", "février", "mars", "avril", "mai", "juin", "juillet",
+              "août", "septembre", "octobre", "novembre", "décembre"];
+const JOURS = ["dim.", "lun.", "mar.", "mer.", "jeu.", "ven.", "sam."];
+
+function peindrePlanning(z){
+  const avec = E.items.filter(m => m.starts_at || m.start_date);
+  const sans = E.items.filter(m => !(m.starts_at || m.start_date));
+  avec.sort((a, b) => String(a.starts_at || a.start_date)
+                        .localeCompare(String(b.starts_at || b.start_date)));
+  let moisCourant = null, bloc = null;
+  avec.forEach(m => {
+    const iso = String(m.starts_at || m.start_date).slice(0, 10);
+    const d = new Date(iso + "T12:00:00");
+    if (isNaN(d)) return;
+    const cle = d.getFullYear() + "-" + d.getMonth();
+    if (cle !== moisCourant) {
+      moisCourant = cle;
+      bloc = neud("div", "mois");
+      bloc.appendChild(neud("h3", null, MOIS[d.getMonth()] + " " + d.getFullYear()));
+      z.appendChild(bloc);
+    }
+    bloc.appendChild(lignePlanning(m, d));
+  });
+  if (sans.length) {
+    const b = neud("div", "mois");
+    b.appendChild(neud("h3", null, "sans date"));
+    sans.forEach(m => b.appendChild(lignePlanning(m, null)));
+    z.appendChild(b);
+  }
+}
+
+function moisCourt(i){
+  const m = MOIS[i];
+  return m.length <= 4 ? m : m.slice(0, 3) + ".";
+}
+
+function lignePlanning(m, d){
+  const faite = /trouv/i.test(m.status || "");
+  const l = neud("div", "ligne" + (faite ? " faite" : ""));
+  l.appendChild(neud("span", "jour", d
+    ? (JOURS[d.getDay()] + " " + d.getDate() + " " + moisCourt(d.getMonth()))
+    : "—"));
+  const q = neud("div", "quoi");
+  q.appendChild(neud("b", null, m.tournoi || m.title || "Mission"));
+  q.appendChild(neud("small", null,
+    [m.place || m.city, m.sport, m.nb_equipes ? m.nb_equipes + " équipes" : null]
+      .filter(Boolean).join(" · ")));
+  l.appendChild(q);
+  if (d) {
+    const jours = Math.round((d - new Date()) / 864e5);
+    l.appendChild(neud("span", "dans", jours < 0 ? "passé"
+      : jours === 0 ? "aujourd’hui" : "dans " + jours + " j"));
+  }
+  const classe = faite ? "ok" : (/rien/i.test(m.status || "") ? "rien" : "");
+  l.appendChild(neud("span", "etat " + classe,
+    faite ? ("✓ " + (m.assigned || "pourvu"))
+    : /rien/i.test(m.status || "") ? "personne trouvé"
+    : /cours/i.test(m.status || "") ? "je cherche"
+    : "à pourvoir"));
+  return l;
+}
+
+function carte(m){
+  const faite = /trouv/i.test(m.status || "");
+  const c = neud("div", "mission" + (faite ? " faite" : ""));
+  c.appendChild(neud("h2", null, m.tournoi || m.title || "Mission"));
+  c.appendChild(neud("p", "ou",
+    [m.quand, m.place || m.city, m.sport].filter(Boolean).join(" · ")));
+
+  const e = neud("div", "etiqs");
+  if (m.nb_equipes) e.appendChild(neud("span", "etiq gros", m.nb_equipes + " équipes"));
+  if (m.status) e.appendChild(neud("span", "etiq", m.status));
+  c.appendChild(e);
+
+  if (m.body) c.appendChild(neud("div", "corps", m.body));
+
+  const f = neud("div", "faire");
+  const rep = neud("div", "reponse");
+
+  const ouvrir = neud("button", "primaire", "✎ Répondre");
+  ouvrir.type = "button";
+  ouvrir.addEventListener("click", () => rep.classList.toggle("ouverte"));
+  f.appendChild(ouvrir);
+
+  if (m.url) {
+    const a = neud("a", null, "L’annonce ↗");
+    a.href = m.url; a.target = "_blank"; a.rel = "noopener";
+    f.appendChild(a);
+  }
+
+  const nom = document.createElement("input");
+  nom.type = "text";
+  nom.placeholder = "Le photographe trouvé — nom et numéro";
+  const mot = document.createElement("textarea");
+  mot.rows = 3;
+  mot.placeholder = "Un mot pour Julien (facultatif)…";
+  rep.append(nom, mot);
+
+  const ligne = neud("div", "faire");
+  [["trouvé", "✓ Trouvé", "primaire"],
+   ["en cours", "⧖ Je cherche", ""],
+   ["rien", "✕ Personne", ""]].forEach(([etat, mot_bouton, cls]) => {
+    const b = neud("button", cls, mot_bouton);
+    b.type = "button";
+    b.addEventListener("click", async () => {
+      if (etat === "trouvé" && !nom.value.trim()) {
+        toast("Dites qui vous avez trouvé"); nom.focus(); return;
+      }
+      b.disabled = true;
+      try {
+        await api("/api/espace/missions/" + m.id + "/repondre",
+                  {etat: etat, trouve: nom.value.trim(), mot: mot.value.trim()});
+        toast("Envoyé à Julien");
+        charger();
+      } catch (err) { b.disabled = false; toast("Échec : " + err.message); }
+    });
+    ligne.appendChild(b);
+  });
+  rep.appendChild(ligne);
+  f.appendChild(rep);
+  c.appendChild(f);
+  return c;
+}
+
+/* La vue choisie la derniere fois : le sourceur qui vit dans le planning
+   n'a pas a le rechoisir a chaque visite. */
+try {
+  const v = localStorage.getItem("vue-espace");
+  if (v === "planning" || v === "cartes") E.vue = v;
+} catch (e) {}
+
+charger();
+</script>
+</body>
+</html>

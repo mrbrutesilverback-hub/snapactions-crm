@@ -1,0 +1,667 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Rencontres — SnapActions</title>
+<style>
+/* Les deux piles ou dort l'argent deja gagne : ceux qui ont ecrit et
+   attendent, ceux dont le rappel est echu. Meme langage visuel que le
+   Reperage et le Studio — on n'apprend pas un troisieme ecran.
+
+   Une carte a la fois, en grand. Ce n'est pas un tableau de bord qu'on
+   regarde, c'est une pile qu'on vide : la question n'est jamais « ou en
+   suis-je ? » mais « a qui je reponds maintenant ? ». */
+:root{
+  --ground:#F2F5F8; --card:#FFFFFF; --sunk:#EDF1F6;
+  --ink:#0F1621; --ink-2:#2C3845; --ink-3:#5D6975;
+  --line:#DCE3EB; --line-soft:#E7ECF2;
+  --blue:#0A6CF0; --blue-ink:#FFFFFF; --blue-soft:#E8F1FE;
+  --green:#0C9A6C; --green-soft:#E0F5EE;
+  --amber:#AD6200; --amber-soft:#FBF1E0;
+  --red:#DC2626; --red-soft:#FDECEC;
+  --lift:0 1px 2px rgba(15,22,33,.05), 0 12px 32px -20px rgba(15,22,33,.26);
+}
+@media (prefers-color-scheme:dark){
+  :root{
+    --ground:#0D1117; --card:#151B23; --sunk:#1E2630;
+    --ink:#E6EDF3; --ink-2:#C3CEDA; --ink-3:#8B97A4;
+    --line:#2A333F; --line-soft:#232C36;
+    --blue:#4C9AFF; --blue-ink:#FFFFFF; --blue-soft:#102642;
+    --green:#3FD68C; --green-soft:#0E2E22;
+    --amber:#E8B44B; --amber-soft:#2F2611;
+    --red:#FF7B72; --red-soft:#331F1D;
+    --lift:0 1px 2px rgba(0,0,0,.5), 0 14px 36px -20px rgba(0,0,0,.9);
+  }
+}
+*{box-sizing:border-box}
+body{margin:0; background:var(--ground); color:var(--ink);
+  font-family:-apple-system,BlinkMacSystemFont,"SF Pro Text","Helvetica Neue",Arial,sans-serif;
+  font-size:17px; line-height:1.47; -webkit-font-smoothing:antialiased}
+.wrap{max-width:860px; margin:0 auto; padding:0 24px 90px}
+.marque{font-size:13px; letter-spacing:.05em; text-transform:uppercase;
+  color:var(--ink-3); font-weight:600; padding:18px 0 0}
+h1{font-size:30px; line-height:1.18; letter-spacing:-.02em; font-weight:650;
+  margin:30px 0 6px}
+.chapeau{margin:0 0 2px; color:var(--ink-2); font-size:16px}
+.chapeau b{color:var(--ink); font-weight:650}
+
+/* Les deux piles. Le chiffre est l'information, pas le mot. */
+.piles{display:flex; gap:10px; flex-wrap:wrap; margin:26px 0 0}
+.pile{flex:1 1 230px; text-align:left; cursor:pointer; background:var(--card);
+  border:1px solid var(--line); border-radius:15px; padding:13px 16px;
+  font:inherit; color:var(--ink); box-shadow:var(--lift)}
+.pile:hover{border-color:var(--ink-3)}
+.pile.on{border-color:var(--blue); box-shadow:0 0 0 3px var(--blue-soft), var(--lift)}
+.pile b{display:block; font-size:30px; font-weight:680; letter-spacing:-.02em;
+  line-height:1.1}
+.pile i{display:block; font-style:normal; font-size:14.5px; color:var(--ink-3);
+  margin-top:2px}
+.pile.brulant b{color:var(--red)}
+.pile.chaud b{color:var(--amber)}
+
+/* La barre d'avancement : combien il en reste, et un pas en arriere. */
+.barre{display:flex; align-items:center; gap:12px; margin:26px 0 12px;
+  flex-wrap:wrap}
+.barre .compte{font-size:14.5px; color:var(--ink-3)}
+.barre button{font:inherit; font-size:14.5px; padding:7px 13px; cursor:pointer;
+  border:1px solid var(--line); background:var(--card); color:var(--ink-2);
+  border-radius:100px}
+.barre button:hover{border-color:var(--ink-3); color:var(--ink)}
+.barre button:disabled{opacity:.4; cursor:default}
+
+/* La carte. */
+.fiche{background:var(--card); border:1px solid var(--line); border-radius:18px;
+  padding:22px 24px 20px; box-shadow:var(--lift)}
+.fiche.brulant{border-color:var(--red); box-shadow:0 0 0 3px var(--red-soft), var(--lift)}
+.qui{font-size:23px; font-weight:660; letter-spacing:-.015em; margin:0}
+.ou{margin:3px 0 0; color:var(--ink-3); font-size:15px}
+.marques{display:flex; gap:7px; flex-wrap:wrap; margin:13px 0 0}
+.marque-t{font-size:13.5px; font-weight:600; padding:5px 11px; border-radius:100px;
+  background:var(--sunk); color:var(--ink-2); border:1px solid var(--line-soft)}
+.marque-t.rouge{background:var(--red-soft); color:var(--red); border-color:transparent}
+.marque-t.ambre{background:var(--amber-soft); color:var(--amber); border-color:transparent}
+.marque-t.vert{background:var(--green-soft); color:var(--green); border-color:transparent}
+
+/* Le fil : savoir qui a parle en dernier est la moitie de l'information. */
+.fil{margin:18px 0 0; display:flex; flex-direction:column; gap:7px}
+.bulle{max-width:86%; padding:9px 13px; border-radius:15px; font-size:15.5px;
+  white-space:pre-wrap; word-break:break-word}
+.bulle.eux{background:var(--sunk); border-bottom-left-radius:5px; align-self:flex-start}
+.bulle.moi{background:var(--blue-soft); color:var(--ink); align-self:flex-end;
+  border-bottom-right-radius:5px}
+.etiq-fil{font-size:12.5px; letter-spacing:.04em; text-transform:uppercase;
+  color:var(--ink-3); font-weight:600; margin:18px 0 0}
+.resume{margin:12px 0 0; padding:11px 14px; border-radius:12px;
+  background:var(--sunk); font-size:15px; color:var(--ink-2)}
+.deja{margin:12px 0 0; font-size:14.5px; color:var(--ink-3);
+  border-left:3px solid var(--line); padding-left:12px; white-space:pre-wrap}
+
+/* Le message. */
+textarea{width:100%; margin:16px 0 0; font:inherit; font-size:16px;
+  line-height:1.5; padding:14px 16px; border-radius:13px; resize:vertical;
+  min-height:150px; background:var(--sunk); color:var(--ink);
+  border:1px solid var(--line)}
+textarea:focus{outline:none; border-color:var(--blue); background:var(--card)}
+
+.gestes{display:flex; gap:9px; flex-wrap:wrap; margin:16px 0 0}
+.gestes button, .gestes a{font:inherit; font-size:15.5px; font-weight:560;
+  padding:11px 17px; border-radius:11px; cursor:pointer; text-decoration:none;
+  border:1px solid var(--line); background:var(--card); color:var(--ink);
+  display:inline-flex; align-items:center; gap:7px}
+.gestes button:hover, .gestes a:hover{border-color:var(--ink-3)}
+.gestes .primaire{background:var(--green); border-color:var(--green); color:#fff}
+.gestes .primaire:hover{filter:brightness(1.1); border-color:var(--green)}
+.gestes .bleu{background:var(--blue); border-color:var(--blue); color:#fff}
+.gestes .bleu:hover{filter:brightness(1.1); border-color:var(--blue)}
+/* Une ligne fixe ne porte pas WhatsApp : le bouton le dit sur lui-meme. */
+.gestes .fixe{background:var(--amber-soft); border-color:var(--amber);
+  color:var(--amber); font-weight:500}
+.gestes button:disabled{opacity:.4; cursor:default}
+
+.tranche{display:flex; gap:9px; flex-wrap:wrap; margin:18px 0 0;
+  padding:16px 0 0; border-top:1px solid var(--line-soft)}
+.tranche button{font:inherit; font-size:14.5px; padding:9px 15px; cursor:pointer;
+  border:1px solid var(--line); background:transparent; color:var(--ink-2);
+  border-radius:100px}
+.tranche button:hover{border-color:var(--ink-3); color:var(--ink)}
+.tranche .fini{border-color:var(--green); color:var(--green); font-weight:600}
+.avert{margin:14px 0 0; font-size:13.5px; color:var(--ink-3)}
+
+.vide{padding:46px 20px; text-align:center; color:var(--ink-3);
+  background:var(--card); border:1px solid var(--line); border-radius:18px}
+.vide b{display:block; font-size:19px; color:var(--ink); margin-bottom:6px}
+.souci{margin:22px 0 0; padding:14px 16px; border-radius:13px;
+  background:var(--red-soft); color:var(--red); font-size:15px}
+
+/* Le journal WhatsApp vieillit en silence : le scan de 7 h 30 n'a pas le droit
+   de lire la base, il passe la main au serveur, et si le serveur a perdu son
+   autorisation plus personne ne lit rien. Trois matins ont ete perdus ainsi.
+   Le bandeau rend la panne visible le lendemain, pas quatre jours apres. */
+.perime{display:flex; align-items:center; gap:12px; flex-wrap:wrap;
+  margin:20px 0 0; padding:13px 16px; border-radius:13px;
+  background:var(--amber-soft); color:var(--amber); font-size:15px;
+  border:1px solid var(--amber)}
+.perime b{font-weight:680}
+.perime button{margin-left:auto; font:inherit; font-size:14.5px; font-weight:600;
+  padding:8px 15px; border-radius:100px; cursor:pointer;
+  background:var(--amber); border:1px solid var(--amber); color:var(--ground)}
+.perime button:hover{filter:brightness(1.1)}
+.perime button:disabled{opacity:.5; cursor:default}
+
+/* Les gens croises sur le terrain. Une carte par personne, la plus en
+   attente d'abord : quand la derniere parole est a eux, le dossier se
+   refroidit pendant qu'on regarde ailleurs. */
+.filtres{display:flex; gap:8px; flex-wrap:wrap; margin:22px 0 0}
+.filtre{font:inherit; font-size:14.5px; padding:8px 15px; border-radius:100px;
+  cursor:pointer; background:var(--card); border:1px solid var(--line);
+  color:var(--ink-2)}
+.filtre:hover{border-color:var(--ink-3); color:var(--ink)}
+.filtre.on{background:var(--blue); border-color:var(--blue); color:#fff; font-weight:600}
+.grille{display:grid; grid-template-columns:repeat(auto-fill, minmax(330px, 1fr));
+  gap:14px; margin:20px 0 0}
+.gens{background:var(--card); border:1px solid var(--line); border-radius:16px;
+  padding:16px 18px; box-shadow:var(--lift); display:flex; flex-direction:column}
+.gens.attend{border-color:var(--amber)}
+.gens.important{box-shadow:0 0 0 2px var(--green-soft), var(--lift)}
+.gens h3{margin:0; font-size:18px; font-weight:650; letter-spacing:-.01em;
+  overflow-wrap:anywhere}
+.gens .quand{margin:2px 0 0; font-size:13.5px; color:var(--ink-3)}
+.gens .etiqs{display:flex; gap:6px; flex-wrap:wrap; margin:10px 0 0}
+.etiq-r{font-size:12.5px; font-weight:600; padding:4px 9px; border-radius:100px;
+  background:var(--sunk); color:var(--ink-2)}
+.etiq-r.ambre{background:var(--amber-soft); color:var(--amber)}
+.etiq-r.vert{background:var(--green-soft); color:var(--green)}
+.etiq-r.bleu{background:var(--blue-soft); color:var(--blue)}
+.gens .fil{margin:12px 0 0; display:flex; flex-direction:column; gap:5px; flex:1}
+.gens .bulle{max-width:92%; padding:7px 11px; border-radius:13px; font-size:14px;
+  white-space:pre-wrap; word-break:break-word}
+.gens .bulle.eux{background:var(--sunk); align-self:flex-start;
+  border-bottom-left-radius:4px}
+.gens .bulle.moi{background:var(--blue-soft); align-self:flex-end;
+  border-bottom-right-radius:4px}
+.gens .faire{display:flex; gap:7px; flex-wrap:wrap; margin:14px 0 0;
+  padding-top:12px; border-top:1px solid var(--line-soft)}
+.gens .faire button, .gens .faire a{font:inherit; font-size:14px; font-weight:560;
+  padding:8px 13px; border-radius:10px; cursor:pointer; text-decoration:none;
+  border:1px solid var(--line); background:var(--card); color:var(--ink)}
+.gens .faire .primaire{background:var(--green); border-color:var(--green); color:#fff}
+.gens .faire .fixe{background:var(--amber-soft); border-color:var(--amber);
+  color:var(--amber); font-weight:500}
+.gens .faire button:hover{border-color:var(--ink-3)}
+/* La prise de contact a chaud : trois champs, un bouton. Le reste se
+   complete plus tard, depuis la fiche. */
+.prise{display:flex; gap:8px; flex-wrap:wrap; margin:20px 0 0; padding:14px 16px;
+  background:var(--card); border:1px solid var(--line); border-radius:15px;
+  box-shadow:var(--lift)}
+.prise input{flex:1 1 180px; font:inherit; font-size:15.5px; padding:10px 13px;
+  border-radius:11px; background:var(--sunk); color:var(--ink);
+  border:1px solid var(--line)}
+.prise input:focus{outline:none; border-color:var(--blue); background:var(--card)}
+.prise button{font:inherit; font-size:15.5px; font-weight:600; padding:10px 20px;
+  border-radius:11px; cursor:pointer; background:var(--green);
+  border:1px solid var(--green); color:#fff}
+.prise button:hover{filter:brightness(1.1)}
+.zone{display:flex; align-items:baseline; gap:10px; flex-wrap:wrap;
+  margin:26px 0 0; padding:0 0 8px; border-bottom:1px solid var(--line)}
+.zone h2{margin:0; font-size:17px; font-weight:650}
+.zone small{color:var(--ink-3); font-size:13.5px}
+.zone .cpt{margin-left:auto; color:var(--ink-3); font-size:13.5px}
+.vide{margin:12px 0 0; padding:14px 16px; border-radius:13px;
+  background:var(--sunk); color:var(--ink-3); font-size:14.5px}
+.neuf-t{position:relative}
+.neuf-t h3{margin:0; font-size:19px; letter-spacing:-.01em}
+.neuf-t .renom{display:flex; gap:7px; margin:10px 0 0}
+.neuf-t .renom input{flex:1; font:inherit; font-size:15px; padding:8px 11px;
+  border-radius:10px; background:var(--card); color:var(--ink);
+  border:1px solid var(--line)}
+.neuf-t .renom input:focus{outline:none; border-color:var(--blue)}
+.neuf-t .renom button{font:inherit; font-size:14.5px; padding:8px 14px;
+  border-radius:10px; cursor:pointer; background:var(--sunk); color:var(--ink);
+  border:1px solid var(--line)}
+.memo{display:flex; gap:7px; margin:10px 0 0}
+.memo input{flex:1; font:inherit; font-size:14.5px; padding:8px 11px;
+  border-radius:10px; background:var(--card); color:var(--ink);
+  border:1px solid var(--line)}
+.memo input:focus{outline:none; border-color:var(--green)}
+.memo button{font:inherit; font-size:14px; padding:8px 14px; border-radius:10px;
+  cursor:pointer; background:var(--sunk); color:var(--ink);
+  border:1px solid var(--line); min-width:76px}
+.tris{display:flex; gap:7px; flex-wrap:wrap; margin:11px 0 0}
+.tris button{font:inherit; font-size:14px; padding:7px 13px; border-radius:100px;
+  cursor:pointer; background:var(--card); color:var(--ink-2);
+  border:1px solid var(--line)}
+.tris button:hover{color:var(--ink); border-color:var(--blue)}
+.tris button.on{background:var(--green-soft); color:var(--green);
+  border-color:var(--green); font-weight:650}
+.tris button.non.on{background:var(--sunk); color:var(--ink-3);
+  border-color:var(--line)}
+.causerie{margin-top:11px; padding-top:11px; border-top:1px solid var(--line)}
+.causerie .dits{display:flex; flex-direction:column; gap:5px; margin-bottom:8px}
+.causerie .dit{align-self:flex-end; max-width:85%; padding:6px 11px;
+  border-radius:12px 12px 3px 12px; background:var(--blue); color:#fff;
+  font-size:13.5px; line-height:1.4}
+.causerie .ligne{display:flex; gap:7px}
+.causerie input{flex:1; font:inherit; font-size:14.5px; padding:9px 12px;
+  border-radius:10px; background:var(--card); color:var(--ink);
+  border:1px solid var(--line)}
+.causerie input:focus{outline:none; border-color:var(--blue)}
+.causerie .ligne button{font:inherit; font-size:14.5px; font-weight:600;
+  padding:9px 16px; border-radius:10px; cursor:pointer; background:var(--blue);
+  border:1px solid var(--blue); color:#fff}
+.causerie .ligne button:disabled{opacity:.55; cursor:default}
+.raccourcis{display:flex; gap:6px; flex-wrap:wrap; margin-top:7px}
+.raccourcis button{font:inherit; font-size:13px; padding:5px 11px;
+  border-radius:100px; cursor:pointer; background:var(--sunk); color:var(--ink-2);
+  border:1px solid var(--line)}
+.raccourcis button:hover{color:var(--ink); border-color:var(--blue)}
+.brouillon{margin:10px 0 0; padding:12px; border-radius:13px;
+  background:var(--sunk); border:1px solid var(--line)}
+.brouillon textarea{width:100%; box-sizing:border-box; font:inherit; font-size:15px;
+  line-height:1.5; padding:11px 13px; border-radius:11px; resize:vertical;
+  background:var(--card); color:var(--ink); border:1px solid var(--line)}
+.brouillon textarea:focus{outline:none; border-color:var(--blue)}
+.brouillon .faire{margin-top:9px}
+.brouillon small{display:block; margin-top:7px; color:var(--ink-3); font-size:13px}
+/* Les boutons qui envoient vraiment, repris de cartes.css. */
+button.env-direct{font:inherit; font-size:14.5px; font-weight:650;
+  padding:8px 15px; border-radius:10px; cursor:pointer;
+  background:var(--green); border:1px solid var(--green); color:#fff}
+button.env-direct:hover{filter:brightness(1.08)}
+button.env-direct:disabled{opacity:.6; cursor:default}
+button.env-direct.fait{background:var(--sunk); color:var(--ink-3);
+  border-color:var(--line); font-weight:600}
+button.env-chg{font:inherit; font-size:13.5px; padding:7px 11px; border-radius:10px;
+  cursor:pointer; background:var(--sunk); color:var(--ink-2);
+  border:1px solid var(--line)}
+button.env-chg:hover{color:var(--ink); border-color:var(--blue)}
+.env-autre{display:inline-flex; gap:6px; align-items:center}
+.env-autre input{font:inherit; font-size:14.5px; padding:7px 10px; width:150px;
+  border-radius:10px; background:var(--card); color:var(--ink);
+  border:1px solid var(--line)}
+.env-autre input:focus{outline:none; border-color:var(--blue)}
+.env-autre button{font:inherit; font-size:14px; padding:7px 12px; border-radius:10px;
+  cursor:pointer; background:var(--blue); border:1px solid var(--blue); color:#fff}
+
+.toast{position:fixed; left:50%; bottom:26px; transform:translateX(-50%);
+  background:var(--ink); color:var(--ground); padding:11px 18px; border-radius:100px;
+  font-size:15px; box-shadow:var(--lift); z-index:50}
+
+/* L'attribut hidden doit gagner. Sans cette regle, une classe qui declare
+   display:flex ou grid reste visible malgre hidden : le bandeau s'affichait
+   vide, comme une bande de couleur sans texte. */
+[hidden]{display:none !important}
+</style>
+<link rel="stylesheet" href="/nav.css">
+<script>
+  // Le theme choisi en bas du menu vaut pour tous les ecrans, pas seulement
+  // la plateforme. Pose avant tout rendu, sinon la page clignote.
+  try {
+    var t = localStorage.getItem('theme');
+    if (t === 'dark' || t === 'light') document.documentElement.dataset.theme = t;
+  } catch (e) {}
+</script>
+<link rel="stylesheet" href="/bitchat.css">
+</head>
+<body>
+<div class="wrap">
+  <div class="marque">SnapActions</div>
+  <h1>Rencontres</h1>
+  <p class="chapeau" id="chapeau">Lecture…</p>
+  <!-- Les numeros du terrain. Julien ne tape rien : les conversations
+       apparaissent toutes seules apres une journee d'op, il lui reste a
+       renommer, trier, relancer. -->
+  <div class="zone">
+    <h2>Derniers numéros</h2>
+    <small id="d-sous">ramassés sur le terrain — à trier</small>
+    <span class="cpt" id="cpt-derniers"></span>
+  </div>
+  <div class="filtres" id="d-filtres"></div>
+  <div class="grille" id="derniers"></div>
+</div>
+<div class="toast" id="toast" hidden></div>
+
+<script>
+function $(s, r){ return (r || document).querySelector(s); }
+function neud(b, c, t){ const e = document.createElement(b); if (c) e.className = c;
+  if (t != null) e.textContent = t; return e; }
+let minuteur = null;
+function toast(m){ const t = $("#toast"); t.textContent = m; t.hidden = false;
+  clearTimeout(minuteur); minuteur = setTimeout(() => { t.hidden = true; }, 2600); }
+
+function ouvrirLien(url){
+  fetch("/api/ouvrir", {method: "POST", headers: {"Content-Type": "application/json"},
+    body: JSON.stringify({url: url})})
+    .then(r => { if (!r.ok) throw new Error("refus"); })
+    .catch(() => window.open(url, "_blank", "noopener"));
+}
+
+/* Memes regles que partout : un fixe ne porte pas WhatsApp. */
+function numeroWa(tel){
+  const brut = String(tel || "").replace(/\D/g, "").replace(/^00/, "");
+  const n = /^377/.test(brut) ? brut : brut.replace(/^0/, "33");
+  return n.length >= 10 ? n : "";
+}
+function estFixe(tel){
+  const brut = String(tel || "").replace(/\D/g, "").replace(/^00/, "");
+  if (/^377/.test(brut)) return /^3779/.test(brut) && brut.length === 11;
+  const n = brut.replace(/^0/, "33");
+  return /^33[1-59]/.test(n) && n.length === 11;
+}
+
+async function api(url, corps){
+  const r = await fetch(url, {method: "POST",
+    headers: {"Content-Type": "application/json"}, body: JSON.stringify(corps)});
+  const d = await r.json();
+  if (!r.ok) throw new Error(d.error || "refus");
+  return d;
+}
+
+/* Le brouillon du modele local. Il s'affiche, Julien le relit, et les memes
+   boutons verts que partout l'envoient — c'est lui qui appuie. */
+async function aider(x, bouton, carteDom){
+  const avant = bouton.textContent;
+  bouton.disabled = true;
+  bouton.textContent = "Écriture…";
+  try {
+    const d = await (await fetch("/api/rencontres/" + x.chat_id + "/aider")).json();
+    if (!d || !d.texte) throw new Error((d && d.motif) || "le modèle n’a rien rendu");
+    let z = carteDom.querySelector(".brouillon");
+    if (!z) {
+      z = neud("div", "brouillon");
+      const t = neud("textarea");
+      t.rows = 9;
+      z.appendChild(t);
+      const b = neud("div", "faire");
+      /* Les boutons qui envoient vraiment, poses par envoyer.js. */
+      if (window.Envoyer) {
+        Envoyer.poser(b, {club_id: x.club_id, tel: x.tel, email: x.mail,
+                          objet: "", texte: () => t.value});
+      }
+      const cp = neud("button", null, "Copier");
+      cp.type = "button";
+      cp.addEventListener("click", async () => {
+        try { await navigator.clipboard.writeText(t.value); toast("Copié"); }
+        catch (e) { t.select(); toast("Sélectionné — Cmd+C"); }
+      });
+      b.appendChild(cp);
+      const re = neud("button", null, "Refaire");
+      re.type = "button";
+      re.addEventListener("click", () => aider(x, bouton, carteDom));
+      b.appendChild(re);
+      z.appendChild(b);
+      z.appendChild(neud("small", null,
+        "Brouillon du modèle local. Relisez-le avant d’appuyer : "
+        + "le bouton vert l’envoie pour de bon."));
+      carteDom.insertBefore(z, carteDom.querySelector(".faire"));
+      ajouterCauserie(z, [x.club_nom, x.nom].filter(Boolean).join(" · "));
+    }
+    z.querySelector("textarea").value = d.texte;
+  } catch (e) {
+    toast("Échec : " + e.message);
+  } finally {
+    bouton.disabled = false;
+    bouton.textContent = avant;
+  }
+}
+
+/* La zone ou Julien dit ce qu'il veut changer, et ou le modele refait le
+   message. On retouche TOUJOURS le texte qu'il a sous les yeux, pas un
+   original range quelque part : il peut donc enchainer les demandes.
+   Rien n'est envoye d'ici — il n'existe aucun envoi dans ce CRM. */
+const RACCOURCIS = ["Plus court", "Plus chaleureux", "Plus direct",
+  "Moins commercial", "Vouvoiement plus simple"];
+
+function ajouterCauserie(zone, contexte){
+  if (zone.querySelector(".causerie")) return;
+  const t = zone.querySelector("textarea");
+  const c = neud("div", "causerie");
+  const dits = neud("div", "dits");
+  c.appendChild(dits);
+
+  const ligne = neud("div", "ligne");
+  const champ = neud("input");
+  champ.type = "text";
+  champ.placeholder = "Dites ce qu’il faut changer…";
+  ligne.appendChild(champ);
+  const go = neud("button", null, "Refaire");
+  go.type = "button";
+  ligne.appendChild(go);
+  c.appendChild(ligne);
+
+  const r = neud("div", "raccourcis");
+  RACCOURCIS.forEach(mot => {
+    const b = neud("button", null, mot);
+    b.type = "button";
+    b.addEventListener("click", () => lancer(mot));
+    r.appendChild(b);
+  });
+  c.appendChild(r);
+  zone.appendChild(c);
+
+  async function lancer(consigne){
+    consigne = (consigne || champ.value).trim();
+    if (!consigne) { champ.focus(); return; }
+    const avant = go.textContent;
+    go.disabled = true; champ.disabled = true;
+    go.textContent = "…";
+    try {
+      const d = await api("/api/message/retoucher",
+        {texte: t.value, consigne: consigne, contexte: contexte || ""});
+      t.value = d.texte;
+      dits.appendChild(neud("div", "dit", consigne));
+      champ.value = "";
+      t.scrollTop = 0;
+    } catch (e) {
+      toast("Échec : " + e.message);
+    } finally {
+      go.disabled = false; champ.disabled = false;
+      go.textContent = avant;
+      champ.focus();
+    }
+  }
+
+  go.addEventListener("click", () => lancer());
+  champ.addEventListener("keydown", e => {
+    if (e.key === "Enter") { e.preventDefault(); lancer(); }
+  });
+}
+
+/* Les numeros ramasses sur le terrain. Rien a saisir : ils arrivent par
+   WhatsApp, on les renomme, on les trie, on les relance. */
+const D = {jours: 7, tout: false, tri: ""};
+const TRIS = [
+  ["booker", "Peut me booker"],
+  ["photographe", "Du métier"],
+  ["non", "Sans suite"],
+];
+
+async function chargerDerniers(){
+  const b = document.getElementById("derniers");
+  try {
+    const d = await (await fetch("/api/derniers?jours=" + D.jours
+      + (D.tout ? "&tout=1" : "")
+      + (D.tri ? "&tri=" + encodeURIComponent(D.tri) : ""))).json();
+    b.innerHTML = "";
+    document.getElementById("cpt-derniers").textContent =
+      d.n ? d.n + " à trier" : (d.deja_tries ? "tout est trié" : "");
+    document.getElementById("d-sous").textContent =
+      "ramassés ces " + d.jours + " derniers jours"
+      + (d.sans_nom ? " — " + d.sans_nom + " sans nom" : "");
+    peindreFiltresD(d);
+    if (!d.n) {
+      b.appendChild(neud("p", "vide", d.deja_tries
+        ? "Tout est trié sur cette période."
+        : "Rien de neuf. Après une journée de terrain, les numéros arrivent ici tout seuls."));
+      return;
+    }
+    d.items.forEach(x => b.appendChild(carteNeuve(x)));
+  } catch (e) { b.innerHTML = ""; }
+}
+
+function peindreFiltresD(d){
+  const f = document.getElementById("d-filtres");
+  f.innerHTML = "";
+
+  /* Les categories d'abord : c'est la que vit le travail. Un contact classe
+     « peut me booker » il y a deux mois se relance aujourd'hui — la fenetre
+     de temps ne s'y applique pas. */
+  const c = d.comptes || {};
+  [["booker", "Peuvent me booker"], ["photographe", "Du métier"]].forEach(([cle, mot]) => {
+    const t = neud("button", "filtre" + (D.tri === cle ? " on" : ""),
+      mot + (c[cle] ? " · " + c[cle] : ""));
+    t.type = "button";
+    t.addEventListener("click", () => {
+      D.tri = (D.tri === cle) ? "" : cle;
+      chargerDerniers();
+    });
+    f.appendChild(t);
+  });
+
+  if (D.tri) {
+    const r = neud("button", "filtre", "← À trier");
+    r.type = "button";
+    r.addEventListener("click", () => { D.tri = ""; chargerDerniers(); });
+    f.appendChild(r);
+    return;
+  }
+
+  [[4, "4 jours"], [7, "7 jours"], [21, "21 jours"]].forEach(([n, mot]) => {
+    const t = neud("button", "filtre" + (D.jours === n ? " on" : ""), mot);
+    t.type = "button";
+    t.addEventListener("click", () => { D.jours = n; chargerDerniers(); });
+    f.appendChild(t);
+  });
+  const t = neud("button", "filtre" + (D.tout ? " on" : ""),
+    D.tout ? "Déjà triés compris" : "Voir les triés" + (d.deja_tries ? " · " + d.deja_tries : ""));
+  t.type = "button";
+  t.addEventListener("click", () => { D.tout = !D.tout; chargerDerniers(); });
+  f.appendChild(t);
+}
+
+function carteNeuve(x){
+  const c = neud("article", "gens neuf-t" + (x.important || x.recrue ? " important" : ""));
+  c.appendChild(neud("h3", null, x.nom));
+  c.appendChild(neud("p", "quand",
+    (x.jours === 0 ? "arrivé aujourd’hui" : x.jours === 1 ? "arrivé hier"
+      : "arrivé il y a " + x.jours + " jours")
+    + (x.tel ? " · " + x.tel : "")));
+
+  const e = neud("div", "etiqs");
+  if (x.recrue) e.appendChild(neud("span", "etiq-r bleu", "du métier"));
+  if (x.important) e.appendChild(neud("span", "etiq-r vert", "peut donner du travail"));
+  if (x.club_nom) e.appendChild(neud("span", "etiq-r", x.club_nom.slice(0, 28)));
+  if (x.tri) e.appendChild(neud("span", "etiq-r ambre", "trié"));
+  c.appendChild(e);
+
+  if (x.fil && x.fil.length) {
+    const fil = neud("div", "fil");
+    x.fil.slice(-3).forEach(m => {
+      const b = neud("div", "bulle " + (m.de_moi ? "moi" : "eux"), m.texte);
+      /* Qui parle, devant son message : « Daniel », pas « eux ». Le serveur
+         donne le prenom de la fiche quand il en connait un. */
+      if (!m.de_moi && x.qui) b.dataset.qui = x.qui;
+      if (m.heure) b.dataset.quand = m.heure;
+      fil.appendChild(b);
+    });
+    c.appendChild(fil);
+  }
+
+  /* Renommer : le seul endroit ou Julien tape, et seulement un nom. */
+  const r = neud("div", "renom");
+  const champ = neud("input");
+  champ.type = "text";
+  champ.value = x.anonyme ? "" : x.nom;
+  champ.placeholder = "Qui est-ce ? (Guillaume, aviron Villefranche)";
+  r.appendChild(champ);
+  const okb = neud("button", null, "Renommer");
+  okb.type = "button";
+  const renommer = async () => {
+    const nom = champ.value.trim();
+    if (!nom) { champ.focus(); return; }
+    try {
+      await api("/api/derniers/" + x.id + "/nom", {nom: nom});
+      toast("Renommé");
+      chargerDerniers();
+    } catch (err) { toast("Échec : " + err.message); }
+  };
+  okb.addEventListener("click", renommer);
+  champ.addEventListener("keydown", ev => {
+    if (ev.key === "Enter") { ev.preventDefault(); renommer(); }
+  });
+  r.appendChild(okb);
+  c.appendChild(r);
+
+  /* Le memo : « rencontree au tournoi, peut me booker pour ses galas ».
+     Deux lignes qui valent toutes les etiquettes, et qu'on relit en
+     relancant trois mois plus tard. */
+  const mz = neud("div", "memo");
+  const mi = neud("input");
+  mi.type = "text";
+  mi.value = x.memo || "";
+  mi.placeholder = "Memo : où, qui, ce qu’elle peut vous apporter…";
+  mz.appendChild(mi);
+  const mb = neud("button", null, "Retenir");
+  mb.type = "button";
+  const garder = async () => {
+    mb.disabled = true;
+    try {
+      await api("/api/derniers/" + x.id + "/note", {memo: mi.value});
+      mb.textContent = "✓";
+      setTimeout(() => { mb.textContent = "Retenir"; mb.disabled = false; }, 1400);
+    } catch (e) { mb.disabled = false; toast("Échec : " + e.message); }
+  };
+  mb.addEventListener("click", garder);
+  mi.addEventListener("keydown", e => {
+    if (e.key === "Enter") { e.preventDefault(); garder(); }
+  });
+  mz.appendChild(mb);
+  c.appendChild(mz);
+
+  /* Trier : un clic, pas de saisie. */
+  const t = neud("div", "tris");
+  TRIS.forEach(([cle, mot]) => {
+    const bt = neud("button", (cle === "non" ? "non " : "") + (x.tri === cle ? "on" : ""), mot);
+    bt.type = "button";
+    bt.addEventListener("click", async () => {
+      try {
+        await api("/api/derniers/" + x.id + "/tri", {tri: x.tri === cle ? "" : cle});
+        chargerDerniers();
+      } catch (err) { toast("Échec : " + err.message); }
+    });
+    t.appendChild(bt);
+  });
+  c.appendChild(t);
+
+  /* Relancer : les memes gestes que partout, rien ne part tout seul. */
+  const f = neud("div", "faire");
+  const num = numeroWa(x.tel);
+  if (num) {
+    const w = neud("button", estFixe(x.tel) ? "fixe" : "primaire",
+      estFixe(x.tel) ? "WhatsApp — fixe" : "Reprendre contact");
+    w.type = "button";
+    w.addEventListener("click", () => ouvrirLien("https://wa.me/" + num));
+    f.appendChild(w);
+  }
+  if (x.tel) {
+    const a = neud("a", null, "Appeler");
+    a.href = "tel:" + x.tel;
+    f.appendChild(a);
+  }
+  const ia = neud("button", null, "\u270e M\u2019aider \u00e0 \u00e9crire");
+  ia.type = "button";
+  ia.addEventListener("click", () => aider({chat_id: x.id, club_nom: x.club_nom,
+    nom: x.nom, tel: x.tel, club_id: x.club_id}, ia, c));
+  f.appendChild(ia);
+  c.appendChild(f);
+  return c;
+}
+
+chargerDerniers();
+</script>
+<script src="/envoyer.js"></script>
+<script src="/reform.js"></script>
+<script src="/nav.js"></script>
+<script src="/bitchat.js"></script>
+</body>
+</html>

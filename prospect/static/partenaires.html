@@ -1,0 +1,292 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Partenaires — SnapActions</title>
+<link rel="stylesheet" href="/cartes.css">
+<link rel="stylesheet" href="/nav.css">
+<style>
+/* Les partenaires sont de l'argent deja gagne : ils ont dit oui une fois.
+   Les reperdre faute de les avoir rappeles coute plus cher que n'importe
+   quelle prospection. L'ecran range donc par FROIDEUR : le plus longtemps
+   sans nouvelles d'abord, son message deja ecrit.
+
+   Julien n'a rien a lancer : tout est pret a l'ouverture. */
+.aud{margin:9px 0 0; color:var(--ink-2); font-size:15px}
+.role{margin:5px 0 0; color:var(--ink-3); font-size:14.5px}
+.brouillon .objet{margin:0 0 9px; font-size:14.5px; color:var(--ink-2)}
+.brouillon .objet b{color:var(--ink-3); font-weight:600}
+.chargement{padding:16px 0; color:var(--ink-3)}
+.dicter{display:flex; gap:8px; flex-wrap:wrap; margin:22px 0 0}
+.dicter input{flex:1 1 320px; font:inherit; font-size:16px; padding:11px 14px;
+  border-radius:12px; background:var(--card); color:var(--ink);
+  border:1px solid var(--line)}
+.dicter input:focus{outline:none; border-color:var(--blue)}
+.dicter button{font:inherit; font-size:16px; font-weight:600; padding:11px 22px;
+  border-radius:12px; cursor:pointer; background:var(--blue);
+  border:1px solid var(--blue); color:#fff}
+.dicter button:disabled{opacity:.55; cursor:default}
+.lu{margin:10px 0 0; padding:13px 16px; border-radius:13px; background:var(--sunk);
+  border:1px solid var(--line)}
+.lu dl{display:grid; grid-template-columns:auto 1fr; gap:3px 14px; margin:0 0 10px}
+.lu dt{color:var(--ink-3); font-size:14px}
+.lu dd{margin:0; font-size:15px}
+.lu .faire{display:flex; gap:8px}
+.lu .avert{margin:0 0 9px; color:var(--amber); font-size:14.5px}
+
+</style>
+<script>
+  // Le theme choisi en bas du menu vaut pour tous les ecrans, pas seulement
+  // la plateforme. Pose avant tout rendu, sinon la page clignote.
+  try {
+    var t = localStorage.getItem('theme');
+    if (t === 'dark' || t === 'light') document.documentElement.dataset.theme = t;
+  } catch (e) {}
+</script>
+<link rel="stylesheet" href="/bitchat.css">
+</head>
+<body>
+<div class="wrap">
+  <div class="marque">SnapActions</div>
+  <h1>Partenaires</h1>
+  <p class="chapeau" id="chapeau">Lecture…</p>
+  <div class="filtres" id="filtres"></div>
+  <div class="grille" id="grille"><p class="chargement">…</p></div>
+  <div class="souci" id="souci" hidden></div>
+</div>
+<div class="toast" id="toast" hidden></div>
+
+<script src="/message.js"></script>
+<script>
+const M = window.Message, neud = M.el;
+function toast(m){ M.dire(m); }
+
+const P = {items: []};
+
+function jours(iso){
+  if (!iso) return null;
+  const d = new Date(String(iso).slice(0, 10));
+  if (isNaN(d)) return null;
+  return Math.round((Date.now() - d.getTime()) / 86400000);
+}
+
+const FILTRES = [
+  ["froids", "Sans nouvelles", x => (jours(x.last_contact_at) == null
+                                     || jours(x.last_contact_at) >= 45)],
+  ["dates", "Une date à venir", x => x.n_dates > 0],
+  ["sans_date", "Aucune date", x => !x.n_dates],
+  ["tout", "Tout", () => true],
+];
+let filtre = "froids";
+
+async function charger(){
+  try {
+    const r = await fetch("/api/partenaires");
+    if (!r.ok) throw new Error("le serveur a refusé (" + r.status + ")");
+    const d = await r.json();
+    /* Le plus froid d'abord : c'est celui qu'on est en train de perdre. */
+    P.items = (d.items || []).sort((a, b) => {
+      const ja = jours(a.last_contact_at), jb = jours(b.last_contact_at);
+      return (jb == null ? 1e9 : jb) - (ja == null ? 1e9 : ja);
+    });
+    const froids = P.items.filter(FILTRES[0][2]).length;
+    document.getElementById("chapeau").innerHTML =
+      "<b>" + P.items.length + "</b> partenaires. <b>" + froids
+      + "</b> sans nouvelles depuis plus de six semaines.";
+    peindreFiltres();
+    peindre();
+  } catch (e) {
+    document.getElementById("chapeau").textContent = "";
+    const s = document.getElementById("souci");
+    s.hidden = false;
+    s.textContent = "Impossible de lire : " + e.message;
+  }
+}
+
+function peindreFiltres(){
+  const b = document.getElementById("filtres");
+  b.innerHTML = "";
+  FILTRES.forEach(([cle, nom, garde]) => {
+    const n = P.items.filter(garde).length;
+    const t = neud("button", "filtre" + (filtre === cle ? " on" : ""),
+      nom + " · " + n);
+    t.type = "button";
+    t.addEventListener("click", () => { filtre = cle; peindreFiltres(); peindre(); });
+    b.appendChild(t);
+  });
+}
+
+function peindre(){
+  const garde = (FILTRES.filter(f => f[0] === filtre)[0] || FILTRES[3])[2];
+  const liste = P.items.filter(garde);
+  const g = document.getElementById("grille");
+  g.innerHTML = "";
+  if (!liste.length) { g.appendChild(neud("p", "vide", "Rien dans ce tiroir.")); return; }
+  liste.forEach(x => g.appendChild(carte(x)));
+  precharger();
+}
+
+function carte(x){
+  const j = jours(x.last_contact_at);
+  const froid = (j == null || j >= 45);
+  const c = neud("article", "gens" + (froid ? " attend" : ""));
+  c.dataset.id = x.id;
+  c.appendChild(neud("h3", null, x.name));
+
+  const bouts = [];
+  if (j == null) bouts.push("jamais relancé");
+  else if (j === 0) bouts.push("contacté aujourd’hui");
+  else bouts.push("dernier contact il y a " + j + " jour" + (j > 1 ? "s" : ""));
+  if (x.city) bouts.push(x.city);
+  if (x.km != null) bouts.push(Math.round(x.km) + " km");
+  c.appendChild(neud("p", "quand", bouts.join(" · ")));
+
+  const e = neud("div", "etiqs");
+  if (froid) e.appendChild(neud("span", "etiq-r ambre", "à rappeler"));
+  if (x.n_dates > 0)
+    e.appendChild(neud("span", "etiq-r vert",
+      x.n_dates + (x.n_dates > 1 ? " dates à venir" : " date à venir")));
+  else e.appendChild(neud("span", "etiq-r", "aucune date prévue"));
+  if (x.sport) e.appendChild(neud("span", "etiq-r bleu", x.sport));
+  c.appendChild(e);
+
+  if (x.prochaine_date && x.prochaine_date.name)
+    c.appendChild(neud("p", "aud", "Prochaine : " + x.prochaine_date.name
+      + " — " + String(x.prochaine_date.start_date).slice(0, 10)));
+  if (x.partenaire_note) c.appendChild(neud("p", "role", x.partenaire_note));
+
+  const qui = (x.contacts || [])[0];
+  if (qui) {
+    const nom = [qui.first_name, qui.last_name].filter(Boolean).join(" ");
+    c.appendChild(neud("p", "role",
+      [nom, qui.role, qui.phone_fmt || qui.phone, qui.email]
+        .filter(Boolean).join(" · ")));
+  }
+  return c;
+}
+
+/* Le message est ecrit d'avance, pour les cartes affichees. La route de
+   lecture ne cree aucun brouillon : ouvrir l'ecran n'engage rien. */
+async function precharger(){
+  const cartes = Array.from(document.querySelectorAll(".gens[data-id]"));
+  for (const dom of cartes) {
+    if (dom.querySelector(".brouillon")) continue;
+    const x = P.items.filter(i => String(i.id) === dom.dataset.id)[0];
+    if (!x) continue;
+    try {
+      const r = await fetch("/api/partenaires/" + x.id + "/message");
+      if (!r.ok) continue;
+      const d = await r.json();
+      if (!d.corps) continue;
+      const qui = (x.contacts || [])[0] || {};
+      M.panneau(dom, {texte: d.corps, objet: d.objet,
+        tel: qui.phone || x.phone, email: qui.email || x.email, club_id: x.id,
+        contexte: [x.name, x.sport, x.city].filter(Boolean).join(" · ")});
+    } catch (e) { /* un partenaire muet n'empeche pas les autres */ }
+  }
+}
+
+
+/* Ajouter en dictant une phrase. Le modele local lit des MOTS ; le numero et
+   le mail, eux, sont extraits du texte par util — un modele n'a pas le droit
+   d'inventer un moyen de contact. On montre toujours ce qui sera cree avant
+   de l'ecrire. */
+function barreDicter(apres, categorie, auRetour){
+  const d = neud("div", "dicter");
+  const champ = neud("input");
+  champ.type = "text";
+  champ.placeholder = "Ajoutez en une phrase\u2026 (ajoute Eric, Aviron Villefranche, en "
+    + categorie + ")";
+  d.appendChild(champ);
+  const go = neud("button", null, "Ajouter");
+  go.type = "button";
+  d.appendChild(go);
+  apres.parentNode.insertBefore(d, apres);
+  const zone = neud("div");
+  apres.parentNode.insertBefore(zone, apres);
+
+  async function lire(){
+    const phrase = champ.value.trim();
+    if (!phrase) { champ.focus(); return; }
+    go.disabled = true;
+    const avant = go.textContent;
+    go.textContent = "Je lis\u2026";
+    try {
+      const r = await fetch("/api/ajouter-en-phrase", {
+        method: "POST", headers: {"Content-Type": "application/json"},
+        body: JSON.stringify({phrase: phrase, verifier: true})});
+      const j = await r.json().catch(() => ({}));
+      if (!r.ok) throw new Error(j.error || "refus du serveur");
+      montrer(j.lu, phrase);
+    } catch (e) {
+      M.dire("\u00c9chec : " + e.message);
+    } finally {
+      go.disabled = false; go.textContent = avant;
+    }
+  }
+
+  function montrer(lu, phrase){
+    zone.innerHTML = "";
+    const b = neud("div", "lu");
+    if (lu.deja) {
+      const a = neud("p", "avert",
+        "\u00ab\u00a0" + lu.deja.name + "\u00a0\u00bb existe d\u00e9j\u00e0"
+        + (lu.deja.city ? " \u00e0 " + lu.deja.city : "")
+        + " \u2014 la fiche sera compl\u00e9t\u00e9e, pas doubl\u00e9e.");
+      b.appendChild(a);
+    }
+    const dl = neud("dl");
+    [["Nom", lu.name], ["Ville", lu.city], ["Sport", lu.sport],
+     ["Personne", lu.personne], ["R\u00f4le", lu.role],
+     ["T\u00e9l\u00e9phone", lu.phone], ["Mail", lu.email],
+     ["Rang\u00e9 en", lu.categorie]].forEach(([k, v]) => {
+      if (!v) return;
+      dl.appendChild(neud("dt", null, k));
+      dl.appendChild(neud("dd", null, v));
+    });
+    b.appendChild(dl);
+    if (!lu.phone && !lu.email)
+      b.appendChild(neud("p", "avert",
+        "Aucun num\u00e9ro ni mail dans la phrase \u2014 la fiche sera cr\u00e9\u00e9e sans."));
+    const f = neud("div", "faire");
+    const ok = neud("button", "primaire", "C\u2019est bon, cr\u00e9er");
+    ok.type = "button";
+    ok.addEventListener("click", async () => {
+      ok.disabled = true; ok.textContent = "\u2026";
+      try {
+        const r = await fetch("/api/ajouter-en-phrase", {
+          method: "POST", headers: {"Content-Type": "application/json"},
+          body: JSON.stringify({phrase: phrase})});
+        const j = await r.json().catch(() => ({}));
+        if (!r.ok) throw new Error(j.error || "refus du serveur");
+        M.dire(j.etat === "created" ? "Fiche cr\u00e9\u00e9e" : "Fiche compl\u00e9t\u00e9e");
+        zone.innerHTML = ""; champ.value = "";
+        if (typeof auRetour === "function") auRetour();
+      } catch (e) {
+        M.dire("\u00c9chec : " + e.message);
+        ok.disabled = false; ok.textContent = "C\u2019est bon, cr\u00e9er";
+      }
+    });
+    f.appendChild(ok);
+    const non = neud("button", null, "Annuler");
+    non.type = "button";
+    non.addEventListener("click", () => { zone.innerHTML = ""; });
+    f.appendChild(non);
+    b.appendChild(f);
+    zone.appendChild(b);
+  }
+
+  go.addEventListener("click", lire);
+  champ.addEventListener("keydown", e => {
+    if (e.key === "Enter") { e.preventDefault(); lire(); }
+  });
+}
+
+barreDicter(document.getElementById("filtres"), "partenaire", charger);
+charger();
+</script>
+<script src="/nav.js"></script>
+<script src="/bitchat.js"></script>
+</body>
+</html>

@@ -1,0 +1,459 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Prospection clubs — SnapActions</title>
+<link rel="icon" type="image/png" href="/img/marque-clair.png"
+      media="(prefers-color-scheme: light)">
+<link rel="icon" type="image/png" href="/img/marque-sombre.png"
+      media="(prefers-color-scheme: dark)">
+<link rel="apple-touch-icon" href="/img/marque-clair.png">
+<script>
+  // Avant tout rendu, sinon la page clignote en clair au chargement.
+  try {
+    var t = localStorage.getItem('theme');
+    if (t === 'dark' || t === 'light') document.documentElement.dataset.theme = t;
+  } catch (e) {}
+</script>
+<link rel="stylesheet" href="/app.css">
+<link rel="stylesheet" href="/nav.css">
+<style>
+/* Les deux portes vers les sous-listes de Clubs. Elles remplacent deux
+   entrees de menu : meme table, deux drapeaux. */
+.sous-listes{display:flex; gap:10px; flex-wrap:wrap; margin:0 0 14px}
+.sous-liste{flex:1 1 240px; display:block; padding:12px 16px; border-radius:13px;
+  text-decoration:none; background:var(--sunk,#EDF1F6); color:inherit;
+  border:1px solid var(--line,#DCE3EB)}
+.sous-liste:hover{border-color:var(--blue,#0A6CF0)}
+.sous-liste b{display:block; font-size:16px}
+.sous-liste span{display:block; margin-top:2px; font-size:13.5px; opacity:.72}
+</style>
+<link rel="stylesheet" href="/bitchat.css">
+</head>
+<body>
+<!-- La navigation est posee par /nav.js : un seul menu, a gauche, le
+     meme sur les quatre ecrans. -->
+
+<main>
+  <!-- AUJOURD'HUI -->
+  <section id="tab-today" class="tab on">
+    <div id="waVieux" class="banner alerte" hidden></div>
+    <div id="setupWarn" class="banner" hidden>
+      Renseignez votre identité et votre argumentaire dans <b>Réglages</b> : les messages
+      s'écrivent tout seuls avec, et sonnent faux sans.
+    </div>
+    <form id="memoForm" class="memo">
+      <input id="memoTexte" autocomplete="off"
+        placeholder="Cherchez ou préparez : « basket nice », « aviron mandelieu », « toilettage », « studio cannes foot »…">
+      <button class="primary" type="submit">Préparer</button>
+    </form>
+    <div id="memoCartes" class="memo-cartes"></div>
+
+    <div class="kpis" id="kpis"></div>
+
+    <h2 class="bloc-titre">Le point du jour<span class="n" id="nJournee"></span>
+      <span class="sous" id="journeeSous">dans l'ordre, du plus coûteux à laisser filer</span></h2>
+    <div id="tiroirsJour" class="tiroirs-jour"></div>
+    <div id="journee" class="journee"></div>
+
+    <div class="cols">
+      <div class="col">
+        <h2>La balle est dans votre camp<span class="n" id="nAttendent"></span>
+          <span class="sous">à appeler d'abord, puis à répondre</span></h2>
+        <div id="attendent" class="list"></div>
+      </div>
+      <div class="col">
+        <h2>À décider<span class="n" id="nTrancher"></span>
+          <span class="sous">assez tôt pour proposer, assez près pour y aller</span></h2>
+        <div id="aTrancher" class="list"></div>
+        <h2 style="margin-top:22px">Veille
+          <button class="mini" id="runWatch">Lancer la veille</button></h2>
+        <div id="log" class="list small"></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- RELAIS : medias, communautes de parents, institutionnels -->
+  <section id="tab-relais" class="tab">
+    <h2 class="bloc-titre">Relais<span class="n" id="nRelais"></span>
+      <span class="sous">ceux qui parlent aux parents — vos acheteurs, pas vos terrains</span></h2>
+    <p class="hint">Ce ne sont pas des clubs : ils n'organisent rien. On ne leur
+      propose pas une couverture, mais un échange — des photos pour leurs pages,
+      un jeu-concours pour leur audience.</p>
+    <div id="relaisListe"></div>
+  </section>
+
+  <!-- MES DATES -->
+  <section id="tab-dates" class="tab">
+    <h2 class="bloc-titre">Mes dates<span class="n" id="nDates"></span>
+      <span class="sous" id="datesSous">les jours où vous serez sur le terrain — calendrier SnapActions</span>
+      <span class="grow"></span>
+      <button class="geste maitre" id="nouvelleDate">
+        <span class="ico">＋</span>Nouvelle date</button></h2>
+    <div id="datesAvis" class="banner" hidden></div>
+
+    <div id="mesDates" class="dates"></div>
+  </section>
+
+  <!-- CLUBS -->
+  <section id="tab-clubs" class="tab">
+    <!-- Partenaires et Relais ne sont pas d'autres listes : ce sont deux
+         drapeaux sur la meme table. Ils avaient chacun leur entree de menu
+         pour 607 fiches dont 7 et 13 marquees. On entre par ici. -->
+    <div class="sous-listes">
+      <a class="sous-liste" href="/partenaires.html">
+        <b>Partenaires</b><span>ceux qui ont déjà dit oui — messages prêts</span>
+      </a>
+      <a class="sous-liste" href="/relais.html">
+        <b>Relais</b><span>médias et communautés qui parlent aux familles</span>
+      </a>
+    </div>
+    <div class="toolbar">
+      <input id="clubSearch" type="search" placeholder="Chercher un club, une ville, un contact…">
+      <select id="clubJoignable">
+        <option value="">Joignables ou non</option>
+        <option value="1">Avec un contact</option>
+        <option value="0">Sans aucun contact</option>
+      </select>
+      <select id="clubStatus"><option value="">Tous statuts</option></select>
+      <input id="clubDept" placeholder="Dépt" size="4">
+      <select id="clubGroupe" title="Regrouper les clubs">
+        <option value="ville">Par ville</option>
+        <option value="sport">Par sport</option>
+        <option value="dept">Par département</option>
+        <option value="">Sans regroupement</option>
+      </select>
+      <select id="clubOrder">
+        <option value="recent">Récents</option>
+        <option value="nom">Nom</option>
+        <option value="dept">Département</option>
+        <option value="statut">Statut</option>
+        <option value="froid">Les plus froids</option>
+      </select>
+      <span class="grow"></span>
+      <button id="newClub">+ Club</button>
+      <a class="btn" href="/api/export/clubs.csv">Export CSV</a>
+    </div>
+    <div id="bulkBar" class="banner ok" hidden>
+      <b id="bulkCount">0</b> club(s) sélectionné(s) —
+      déjà démarchés hors de l'outil ?
+      <input type="date" id="bulkWhen">
+      <select id="bulkChannel">
+        <option value="whatsapp">WhatsApp</option>
+        <option value="call">Appel</option>
+        <option value="email">Email</option>
+        <option value="meeting">Rencontré</option>
+      </select>
+      <button class="mini" id="bulkMark">Marquer comme contactés</button>
+      <button class="mini" id="bulkClear">Annuler</button>
+    </div>
+    <div id="clubList" class="table"></div>
+  </section>
+
+  <!-- CONTACTS -->
+  <section id="tab-contacts" class="tab">
+    <div class="toolbar">
+      <input id="contactSearch" type="search" placeholder="Chercher un contact…">
+      <select id="contactPhone">
+        <option value="">Tous</option>
+        <option value="1">Avec téléphone</option>
+        <option value="0">Sans téléphone</option>
+      </select>
+      <span class="grow"></span>
+      <a class="btn" href="/api/export/contacts.csv">Export CSV</a>
+    </div>
+    <div id="contactList" class="table"></div>
+  </section>
+
+  <!-- PARTENAIRES -->
+  <section id="tab-partenaires" class="tab">
+    <div class="banner ok">
+      Les clubs avec qui vous avez déjà travaillé. On ne leur écrit pas comme à un
+      inconnu : les modèles d'ici ne se présentent pas, ils demandent les dates.
+    </div>
+    <div class="toolbar">
+      <input id="partSearch" type="search" placeholder="Chercher un partenaire…">
+      <span class="grow"></span>
+      <button id="partCartes">Importer des cartes WhatsApp</button>
+      <button id="partNouveau" class="primary">+ Partenaire</button>
+    </div>
+
+    <div id="partImport" class="item" hidden style="display:block">
+      <p class="hint"><b>Une ligne par personne. Trois façons, au choix,
+        mélangeables dans le même collage :</b></p>
+      <ol class="hint" style="margin:6px 0 10px; padding-left:20px; line-height:1.7">
+        <li><b>Un lien WhatsApp.</b> Celui des boutons « Discuter sur WhatsApp »
+          des sites de clubs, ou n'importe quelle adresse <code>wa.me</code>.
+          Le numéro est dedans, je le sors tout seul :<br>
+          <code>https://wa.me/33612345678 - Jean - Cap d'Ail</code></li>
+        <li><b>Un numéro recopié.</b> Dans WhatsApp, ouvrez la carte du contact :
+          elle affiche le numéro.<br>
+          <code>Jean Martin - 06 12 34 56 78 - Cap d'Ail</code></li>
+        <li><b>Un export de discussion <code>.txt</code></b> (depuis le téléphone) :
+          collez-le tel quel, je lis les cartes de contact qu'il contient.</li>
+      </ol>
+      <p class="hint">L'ordre et les séparateurs n'ont pas d'importance : ce qui
+        n'est ni un numéro ni un lien devient le nom, puis le club. Un lien
+        <code>chat.whatsapp.com</code> ne marche pas — c'est l'invitation à un
+        groupe, elle ne contient le numéro de personne.</p>
+      <p class="hint">Rien n'est enregistré à cette étape : vous verrez d'abord
+        la liste de ce que j'ai lu, et vous cocherez ce qu'on garde.</p>
+      <textarea id="partCollage" rows="5"
+        placeholder="https://wa.me/33612345678 - Jean - Cap d'Ail&#10;Jean Martin - 06 12 34 56 78 - Cap d'Ail&#10;Paul - 06 98 76 54 32 - Roquebrune-Cap-Martin"></textarea>
+      <div class="toolbar" style="margin-top:8px">
+        <button class="primary" id="partLire">Lire les cartes</button>
+        <button id="partAnnuler">Annuler</button>
+      </div>
+      <div id="partResultat"></div>
+    </div>
+
+    <div id="partListe" class="list"></div>
+  </section>
+
+  <!-- TOURNOIS -->
+  <section id="tab-tournois" class="tab">
+    <div class="toolbar">
+      <input id="tourSearch" type="search" placeholder="Chercher un tournoi…">
+      <input id="tourDept" placeholder="Dépt" size="4">
+      <label class="chk"><input type="checkbox" id="tourUpcoming" checked> À venir</label>
+      <select id="tourDiscipline" title="Le football noie tout le reste : séparez-les">
+        <option value="">Tous les sports</option>
+        <option value="horsfoot">Hors football</option>
+        <option value="foot">Football</option>
+      </select>
+      <span class="grow"></span>
+      <button id="newTournoi">+ Tournoi</button>
+      <a class="btn" href="/api/export/tournois.csv">Export CSV</a>
+    </div>
+    <div id="tourList" class="table"></div>
+  </section>
+
+  <!-- SUIVI : un dossier par discussion, range par etape -->
+  <section id="tab-suivi" class="tab">
+    <h2 class="bloc-titre">Où j'en suis<span class="n" id="nSuivi"></span>
+      <span class="sous" id="suiviMaj"></span>
+      <button class="mini" id="suiviRelire">Relire WhatsApp</button></h2>
+    <div id="suiviEtapes" class="wa-etats"></div>
+    <p class="hint" id="suiviAide" style="margin:-4px 0 14px"></p>
+    <div id="suiviCartes" class="grille-dossiers"></div>
+  </section>
+
+  <!-- WHATSAPP -->
+  <section id="tab-whatsapp" class="tab">
+    <h2 class="bloc-titre">Conversations WhatsApp<span class="n" id="nWa"></span>
+      <span class="sous" id="waMaj"></span>
+      <button class="mini" id="waRelire">Relire WhatsApp</button></h2>
+    <div class="wa-etats" id="waEtats"></div>
+    <div id="waListe" class="list"></div>
+    <p class="hint" style="margin-top:16px">
+      Le journal est relu dans la base de WhatsApp Desktop, sur ce Mac : rien ne
+      passe par internet, et il faut l'Accès complet au disque pour le Terminal
+      qui lance l'application. Pour chaque conversation sont enregistrés le nom,
+      le numéro, la date du dernier échange, son sens, et <b>le texte des trois
+      derniers messages</b> — c'est lui qu'on relit sur les cartes d'Aujourd'hui.
+      <b>Aucun message n'est jamais envoyé d'ici.</b></p>
+  </section>
+
+  <!-- MISSIONS -->
+
+  <!-- IMPORT -->
+  <section id="tab-import" class="tab">
+    <h2>Récupérer des contacts</h2>
+    <p class="hint">Déposez un fichier Excel ou CSV, ou collez du texte brut (fil de forum,
+      signatures, page club). Les emails, téléphones, noms de club et codes postaux sont
+      repérés automatiquement. Vous validez ligne par ligne avant écriture.</p>
+
+    <div id="flyerBox" style="margin:0 0 22px">
+      <h3 style="margin:0 0 6px;font-size:15px">Flyers et plaquettes</h3>
+      <p class="hint" style="margin:0 0 10px">Affiche de tournoi, plaquette de club, photo
+        prise au forum. L'agent lit le document, en sort le lieu, les dates, le nombre
+        d'équipes, les catégories et les contacts, calcule la distance depuis Cannes, et
+        prépare le message. Vous tranchez ensuite, tournoi par tournoi.</p>
+      <div id="flyerDrop" class="dropzone">
+        <b>Déposez vos flyers ici</b>
+        <span>images et PDF — ou <button class="link" id="flyerPick">choisissez-les</button></span>
+        <input type="file" id="flyerInput" accept="image/*,.pdf,.heic,.heif" multiple hidden>
+        <small id="flyerEtat">Relevé toutes les deux heures, de 8 h à 20 h.</small>
+      </div>
+      <div id="flyerListe" style="display:flex;gap:6px;flex-wrap:wrap;margin-top:10px"></div>
+    </div>
+
+    <h3 style="margin:0 0 6px;font-size:15px">Fichier Excel ou CSV</h3>
+    <div id="dropzone" class="dropzone">
+      <b>Déposez votre fichier ici</b>
+      <span>.xlsx · .csv · .tsv — ou <button class="link" id="pickFile">choisissez-le</button></span>
+      <input type="file" id="fileInput" accept=".xlsx,.xlsm,.csv,.tsv,.txt" hidden>
+      <small>Fichier .xls ou .numbers : enregistrez-le d'abord en .xlsx ou .csv.</small>
+    </div>
+    <div id="fileInfo" hidden></div>
+
+    <details id="calBox" style="margin:18px 0 10px">
+      <summary>…ou importer un calendrier (votre agenda de travail)</summary>
+      <p class="hint" style="margin-top:10px">Collez un lien <code>webcal://</code> ou
+        <code>https://…ics</code> — par exemple un calendrier iCloud publié. Chaque
+        événement est classé en <b>piste</b> (un club à contacter) ou <b>date</b> (un
+        événement à couvrir). Vous corrigez le classement avant d'enregistrer.</p>
+      <div class="toolbar">
+        <input id="calUrl" class="grow" placeholder="webcal://… ou https://….ics">
+        <input id="calName" placeholder="Nom (ex : SnapActions)" size="18">
+        <button id="calLoad" class="primary">Lire</button>
+      </div>
+      <div id="calResult"></div>
+    </details>
+
+    <details id="waBox" style="margin:18px 0 10px">
+      <summary>…ou importer une conversation WhatsApp déjà échangée</summary>
+      <p class="hint" style="margin-top:10px">Dans WhatsApp : ouvrez la discussion →
+        <b>Exporter la discussion</b> → <b>Sans les médias</b>, puis déposez le
+        <code>.txt</code> ici. Les messages rejoignent l'historique du club, la date du
+        dernier contact se met à jour, et le club passe en « a répondu » s'il vous a
+        répondu. Un même export réimporté ne crée pas de doublon.</p>
+      <p class="hint"><b>Le plus rapide, pour tous vos clubs d'un coup :</b> double-cliquez
+        <code>lire-whatsapp.command</code> dans le dossier de l'app. Il lit uniquement
+        l'index de vos conversations (numéro + date, <b>jamais le texte</b>) et produit un
+        <code>whatsapp-contacts.csv</code>. Déposez-le ci-dessous.</p>
+      <div id="waIdxDrop" class="dropzone" style="padding:18px">
+        <b>Déposez whatsapp-contacts.csv</b>
+        <span>ou <button class="link" id="waIdxPick">choisissez le fichier</button></span>
+        <input type="file" id="waIdxFile" accept=".csv" hidden>
+      </div>
+      <div id="waIdxResult"></div>
+
+      <p class="hint" style="margin-top:16px">Pour une seule discussion, avec le contenu :
+        WhatsApp → Exporter la discussion → Sans les médias.</p>
+      <div id="waDrop" class="dropzone" style="padding:18px">
+        <b>Déposez l'export .txt</b>
+        <span>ou <button class="link" id="waPick">choisissez le fichier</button></span>
+        <input type="file" id="waFile" accept=".txt" hidden>
+      </div>
+      <div id="waResult"></div>
+    </details>
+
+    <details id="pasteBox" style="margin:18px 0 10px">
+      <summary>…ou coller du texte</summary>
+    <div class="toolbar">
+      <input id="importSource" placeholder="Source (ex : Forum Padel FR)">
+      <input id="importUrl" placeholder="URL du fil (facultatif)" class="grow">
+      <select id="importMode">
+        <option value="auto">Détection auto</option>
+        <option value="blob">Texte libre</option>
+        <option value="table">Tableau</option>
+      </select>
+    </div>
+    <textarea id="importText" rows="10" placeholder="Collez ici…"></textarea>
+    </details>
+    <div class="toolbar">
+      <button id="importPreview" class="primary">Analyser le texte collé</button>
+      <label class="chk"><input type="checkbox" id="importSeq"> Programmer les relances sur les nouveaux</label>
+      <span class="grow"></span>
+      <button id="importCommit" hidden class="primary">Enregistrer la sélection</button>
+    </div>
+    <div id="importResult"></div>
+  </section>
+
+  <!-- REGLAGES -->
+  <section id="tab-reglages" class="tab">
+    <div class="cols">
+      <div class="col">
+        <h2>Vous</h2>
+        <div class="form" id="settingsForm">
+          <label>Nom <input name="my_name"></label>
+          <label>Structure <input name="my_org"></label>
+          <label>Email <input name="my_email"></label>
+          <label>Téléphone <input name="my_phone"></label>
+          <label>Discipline <input name="sport" placeholder="padel, tennis, échecs…"></label>
+          <label>Argumentaire (2 lignes max, il finit dans les messages)
+            <textarea name="pitch" rows="3"></textarea></label>
+          <label>Signature (vide = générée)
+            <textarea name="my_signature" rows="3"></textarea></label>
+          <h3>Vos dates</h3>
+          <label>Lien de votre calendrier publié
+            <input name="calendrier_url"
+                   placeholder="webcal://p134-caldav.icloud.com/published/2/…">
+            <span class="hint">Calendrier du Mac → clic droit sur le calendrier →
+              Partager le calendrier → cocher « Calendrier public » → Copier le lien.
+              Republier un calendrier change ce lien : l’ancien cesse de répondre.</span>
+          </label>
+
+          <h3>Cadence</h3>
+          <label>Relances à J+ <input name="relance_j" placeholder="4,10,21"></label>
+          <label>Jours évités <input name="quiet_days" placeholder="sat,sun"></label>
+          <label>Fenêtre tournoi : de J- <input name="lead_days_max" size="4">
+            à J- <input name="lead_days_min" size="4"> avant l'événement</label>
+          <label>Rayon de ciblage
+            <select name="match_radius">
+              <option value="same_dept">Même département</option>
+              <option value="neighbours">Département + limitrophes</option>
+              <option value="all">Partout</option>
+            </select></label>
+          <label class="chk"><input type="checkbox" name="auto_draft" value="1">
+            Préparer les brouillons automatiquement pendant la veille</label>
+
+          <h3>Reformulation</h3>
+          <label>Modèle
+            <input name="ia_modele" placeholder="qwen2.5:14b">
+            <span class="hint">Le modèle tourne <b>sur ce Mac</b>, dans Ollama :
+              rien ne sort de la machine, rien n’est facturé, ça marche sans
+              internet. <code>qwen2.5:14b</code> est le plus fidèle ;
+              <code>qwen2.5:7b</code> répond deux fois plus vite mais déforme
+              davantage le sens. <b>Aucun message n’est jamais envoyé
+              automatiquement</b> : vous relisez et vous envoyez vous-même.</span>
+          </label>
+          <h3>Recherche des contacts manquants</h3>
+          <label>Clé Google Gemini
+            <input name="gemini_cle" type="password" autocomplete="off"
+                   placeholder="collez la clé d'aistudio.google.com">
+            <span class="hint" id="geminiEtat">
+              Sans elle, la recherche n'explore que les pistes déjà connues
+              (site du club, page de l'annonce, domaine du mail). Avec elle,
+              Google trouve d'abord <b>les pages</b> du club, puis
+              l'application y <b>lit</b> les numéros. <b>Le modèle ne produit
+              jamais un numéro lui-même</b> — c'est ainsi qu'on évite les
+              numéros inventés. Seuls le nom et la ville du club sortent de ce
+              Mac. Rien n'est enregistré ni envoyé sans vous.</span>
+          </label>
+          <button id="saveSettings" class="primary">Enregistrer</button>
+        </div>
+      </div>
+      <div class="col">
+        <div class="logo-full">
+          <img class="mark-light" src="/img/logo-clair.png" alt="SnapActions" width="664" height="403">
+          <img class="mark-dark" src="/img/logo-sombre.png" alt="SnapActions" width="664" height="403">
+        </div>
+        <h2>Calendrier</h2>
+        <p class="hint">Abonnez le Calendrier du Mac à ce lien : Fichier → Nouvel abonnement
+          calendrier. Les relances et les tournois s'y mettent à jour tout seuls.</p>
+        <div id="feeds" class="feeds"></div>
+
+        <h2 style="margin-top:26px">Autres outils</h2>
+        <p class="hint">Récupérer des contacts depuis un fichier Excel, un CSV
+          ou un fil de forum collé : <button class="link" data-tab-go="import">ouvrir
+          l'import</button>. Pour les flyers, le Repérage fait mieux.</p>
+
+        <h2 style="margin-top:26px">Sources de veille
+          <button class="mini" id="newSource">+ Source</button></h2>
+        <div id="sourceList" class="list"></div>
+        <details style="margin-top:10px">
+          <summary>Coller un calendrier ou un CSV à la main</summary>
+          <textarea id="watchPaste" rows="6" placeholder="Contenu .ics ou CSV…"></textarea>
+          <button id="watchPasteBtn">Importer les tournois</button>
+        </details>
+
+        <h2 style="margin-top:26px">Modèles de message</h2>
+        <div id="templateList" class="list"></div>
+      </div>
+    </div>
+  </section>
+</main>
+
+<div id="modal" class="modal" hidden><div class="modal-inner"><button class="close" id="modalClose">×</button><div id="modalBody"></div></div></div>
+<div id="toast" class="toast" hidden></div>
+<script src="/nav.js"></script>
+<script src="/bitchat.js"></script>
+<script src="/reform.js"></script>
+<script src="/envoyer.js"></script>
+<script src="/app.js"></script>
+<script src="/flyers.js"></script>
+</body>
+</html>

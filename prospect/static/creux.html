@@ -1,0 +1,901 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Les semaines à remplir — SnapActions</title>
+<style>
+/* La page des semaines creuses. Meme langage visuel que le Reperage : c'est
+   l'ecran dont Julien se sert, et on ne lui demande pas d'en apprendre un
+   deuxieme. Elle vit a part, pour ne rien encombrer. */
+:root{
+  --ground:#F2F5F8; --card:#FFFFFF; --sunk:#EDF1F6;
+  --ink:#0F1621; --ink-2:#2C3845; --ink-3:#5D6975;
+  --line:#DCE3EB; --line-soft:#E7ECF2;
+  --blue:#0A6CF0; --blue-ink:#FFFFFF; --blue-soft:#E8F1FE;
+  --green:#0C9A6C; --green-soft:#E0F5EE;
+  --amber:#AD6200; --amber-soft:#FBF1E0;
+  --red:#DC2626; --red-soft:#FDECEC;
+  --lift:0 1px 2px rgba(15,22,33,.05), 0 12px 32px -20px rgba(15,22,33,.26);
+}
+@media (prefers-color-scheme:dark){
+  :root{
+    --ground:#0D1117; --card:#151B23; --sunk:#1E2630;
+    --ink:#E6EDF3; --ink-2:#C3CEDA; --ink-3:#8B97A4;
+    --line:#2A333F; --line-soft:#232C36;
+    --blue:#4C9AFF; --blue-ink:#FFFFFF; --blue-soft:#102642;
+    --green:#3FD68C; --green-soft:#0E2E22;
+    --amber:#E8B44B; --amber-soft:#2F2611;
+    --red:#FF7B72; --red-soft:#331F1D;
+    --lift:0 1px 2px rgba(0,0,0,.5), 0 14px 36px -20px rgba(0,0,0,.9);
+  }
+}
+*{box-sizing:border-box}
+body{margin:0; background:var(--ground); color:var(--ink);
+  font-family:-apple-system,BlinkMacSystemFont,"SF Pro Text","Helvetica Neue",Arial,sans-serif;
+  font-size:17px; line-height:1.47; -webkit-font-smoothing:antialiased}
+.wrap{max-width:960px; margin:0 auto; padding:0 24px 80px}
+
+header{display:flex; align-items:center; gap:14px; padding:18px 0 0; flex-wrap:wrap}
+.marque{font-size:13px; letter-spacing:.05em; text-transform:uppercase;
+  color:var(--ink-3); font-weight:600}
+.switch{margin-left:auto; text-decoration:none; font-size:14px; font-weight:500;
+  color:var(--ink-2); background:var(--sunk); border-radius:100px;
+  padding:7px 14px; white-space:nowrap}
+.switch:hover{background:var(--line-soft); color:var(--ink)}
+.switch + .switch{margin-left:8px}
+
+h1{font-size:30px; line-height:1.18; letter-spacing:-.02em; font-weight:650;
+  margin:34px 0 6px}
+.chapeau{margin:0 0 4px; color:var(--ink-2); font-size:16px}
+.chapeau b{color:var(--ink); font-weight:650}
+.source{margin:6px 0 0; font-size:13.5px; color:var(--ink-3)}
+.source .relire{font:inherit; font-size:13.5px; background:none; border:0; padding:0;
+  color:var(--blue); text-decoration:underline; text-underline-offset:3px; cursor:pointer}
+.source .relire[disabled]{color:var(--ink-3); cursor:default; text-decoration:none}
+
+/* La bande des semaines : une tuile par semaine, l'etat se lit a la couleur. */
+.bande{display:flex; gap:9px; flex-wrap:wrap; margin:26px 0 0}
+.sem{display:flex; flex-direction:column; align-items:flex-start; gap:1px;
+  min-width:128px; padding:11px 15px 10px; border-radius:16px; font:inherit;
+  text-align:left; cursor:pointer; background:var(--sunk); color:var(--ink-2);
+  border:1.5px solid transparent; transition:border-color .18s, background .18s}
+.sem:hover{background:var(--line-soft)}
+.sem .num{font-size:21px; font-weight:650; letter-spacing:-.02em; line-height:1.1;
+  font-variant-numeric:tabular-nums; color:var(--ink)}
+.sem .quand{font-size:12.5px; color:var(--ink-3); white-space:nowrap}
+.sem .dit{font-size:13px; font-weight:600; white-space:nowrap; margin-top:3px}
+.sem.on{border-color:currentColor}
+.sem.vide{color:var(--red)} .sem.vide.on{background:var(--red-soft)}
+.sem.we_libre{color:var(--amber)} .sem.we_libre.on{background:var(--amber-soft)}
+.sem.leger{color:var(--blue)} .sem.leger.on{background:var(--blue-soft)}
+.sem.plein{color:var(--green)} .sem.plein.on{background:var(--green-soft)}
+.sem.plein .dit{opacity:.85}
+
+/* Le detail d'une semaine. */
+.detail{margin-top:30px}
+.titre-sem{display:flex; align-items:baseline; gap:12px; flex-wrap:wrap;
+  margin:0 0 4px; font-size:23px; font-weight:650; letter-spacing:-.015em}
+.titre-sem .etat{font-size:14px; font-weight:650; border-radius:100px;
+  padding:5px 13px; white-space:nowrap}
+.etat.vide{background:var(--red-soft); color:var(--red)}
+.etat.we_libre{background:var(--amber-soft); color:var(--amber)}
+.etat.leger{background:var(--blue-soft); color:var(--blue)}
+.etat.plein{background:var(--green-soft); color:var(--green)}
+
+h2{font-size:13px; text-transform:uppercase; letter-spacing:.06em;
+  color:var(--ink-3); font-weight:650; margin:26px 0 10px}
+
+.cale{display:flex; flex-direction:column; gap:7px; margin:0; padding:0;
+  list-style:none}
+.cale li{display:flex; gap:12px; align-items:baseline; background:var(--sunk);
+  border-radius:12px; padding:11px 15px; font-size:15px}
+.cale .j{font-weight:650; font-variant-numeric:tabular-nums; white-space:nowrap;
+  min-width:96px}
+.cale li.we .j{color:var(--green)}
+.cale .we-dit{margin-left:auto; font-size:12.5px; color:var(--ink-3);
+  white-space:nowrap}
+
+.vide-dit{margin:0; padding:16px 18px; border-radius:14px; background:var(--sunk);
+  color:var(--ink-2); font-size:15px}
+
+/* Les pistes : les memes pavés que sur le Reperage, pour se lire sans lire. */
+.pistes{display:grid; grid-template-columns:repeat(auto-fill, minmax(420px, 1fr));
+  gap:12px; align-items:start}
+@media (max-width:900px){ .pistes{grid-template-columns:1fr} }
+.piste{background:var(--card); border:1px solid var(--line-soft);
+  border-radius:18px; box-shadow:var(--lift); overflow:hidden}
+.piste-corps{padding:17px 18px 16px}
+.p-nom{font-size:18px; font-weight:650; letter-spacing:-.012em; line-height:1.26;
+  display:flex; gap:9px; align-items:baseline}
+.p-ou{font-size:14.5px; color:var(--ink-2); margin-top:4px}
+.p-faits{display:flex; gap:8px; flex-wrap:wrap; align-items:center; margin-top:13px}
+.pave{display:inline-flex; align-items:baseline; gap:8px;
+  font-variant-numeric:tabular-nums; line-height:1.15}
+.pave.date{font-size:17px; font-weight:650; letter-spacing:-.01em;
+  background:var(--sunk); border-radius:100px; padding:8px 15px;
+  border:1.5px solid transparent; white-space:nowrap}
+.pave.date.we{border-color:var(--green); color:var(--green)}
+.pave.route{background:var(--sunk); border-radius:13px; padding:9px 13px}
+.pave.route b{font-size:19px; font-weight:650; letter-spacing:-.02em; color:var(--ink)}
+.pave.route i{font-style:normal; font-size:13px; color:var(--ink-3)}
+/* Le nombre d'equipes dit ce que la date rapportera : le meme lisere irise
+   que sur le Reperage, et rien d'autre a l'ecran ne lui ressemble. */
+.pave.equipes{border-radius:13px; padding:9px 13px; border:2px solid transparent;
+  background-image:linear-gradient(var(--sunk),var(--sunk)),
+    conic-gradient(from var(--tour,0deg),#ff5f6d,#ffc371,#7ee8fa,#a06bff,#ff5f6d);
+  background-origin:border-box; background-clip:padding-box,border-box;
+  animation:holo 7s linear infinite}
+.pave.equipes b{font-size:20px; font-weight:650; letter-spacing:-.02em; color:var(--ink)}
+.pave.equipes i{font-style:normal; font-size:13px; color:var(--ink-3)}
+@property --tour{syntax:"<angle>"; inherits:false; initial-value:0deg}
+@keyframes holo{to{--tour:360deg}}
+@media (prefers-reduced-motion:reduce){ .pave.equipes{animation:none} }
+
+.etiqs{display:flex; gap:6px; flex-wrap:wrap; margin-top:11px}
+.etiq{font-size:12.5px; padding:4px 11px; border-radius:100px;
+  background:var(--sunk); color:var(--ink-2)}
+.etiq.pris{background:var(--amber-soft); color:var(--amber); font-weight:600}
+.etiq.ecarte{background:var(--red-soft); color:var(--red); font-weight:600}
+
+.p-barre{display:flex; gap:8px; flex-wrap:wrap; padding:0 18px 16px}
+button{font:inherit; cursor:pointer; border-radius:12px; border:1px solid var(--line);
+  background:var(--sunk); color:var(--ink); padding:10px 16px; font-size:14.5px;
+  font-weight:550}
+button:hover{background:var(--line-soft)}
+button.primaire{background:var(--green); border-color:var(--green); color:#fff}
+button.primaire:hover{filter:brightness(1.1)}
+/* WhatsApp sur une ligne fixe : le bouton reste la — un commerce peut avoir
+   branche WhatsApp Business sur son 04 — mais il cesse de se presenter comme
+   le bon geste, et c'est le mail qui passe en vert a sa place. */
+button.fixe{background:#fdf6e9; border-color:#e0cfae; color:#6b4f21; font-weight:500}
+@media (prefers-color-scheme:dark){
+  :root:not([data-theme="light"]) button.fixe{
+    background:#332c24; border-color:#574634; color:#d8c3a0}
+}
+button.bleu{background:var(--blue); border-color:var(--blue); color:#fff}
+button.bleu:hover{filter:brightness(1.1)}
+button[disabled]{opacity:.5; cursor:default}
+
+.mot{border-top:1px solid var(--line-soft); padding:16px 18px 18px}
+.mot textarea{width:100%; font:inherit; font-size:14.5px; line-height:1.55;
+  padding:13px 15px; border-radius:12px; border:1px solid var(--line);
+  background:var(--sunk); color:var(--ink); resize:vertical; min-height:190px}
+.mot .env-rang{display:contents}
+.p-mot{margin:10px 0 0; padding:11px; border-radius:12px; background:var(--sunk);
+  border:1px solid var(--line)}
+.p-mot textarea{width:100%; box-sizing:border-box; font:inherit; font-size:14.5px;
+  line-height:1.5; padding:10px 12px; border-radius:10px; resize:vertical;
+  background:var(--card); color:var(--ink); border:1px solid var(--line)}
+.p-mot textarea:focus{outline:none; border-color:var(--green)}
+.p-mot button{margin-top:9px}
+.p-mot small{display:block; margin-top:7px; color:var(--ink-3); font-size:13px}
+.gestes{display:flex; gap:8px; flex-wrap:wrap; margin-top:10px; align-items:center}
+.mot .avert{margin:9px 0 0; font-size:13px; color:var(--ink-3)}
+.mot .coller{display:flex; gap:8px; margin-top:10px; align-items:center; flex-wrap:wrap}
+.mot .coller input{flex:1 1 240px; min-width:0; font:inherit; font-size:15px;
+  padding:10px 14px; border-radius:12px; border:1px solid var(--line);
+  background:var(--sunk); color:var(--ink)}
+
+/* Les jours ouvrables libres : des jetons, pas des cartes — ce ne sont pas
+   des pistes, c'est l'etat de la semaine. Le mercredi se detache : en France
+   c'est le jour ou les enfants s'entrainent, donc le plus facile a vendre. */
+/* Le monde attendu. Deux tons seulement : « du monde » et « pas mal » —
+   au-dela on ferait semblant de connaitre un chiffre qu'on n'a pas. */
+.pave.monde{border-radius:13px; padding:9px 13px; display:inline-flex;
+  align-items:baseline; gap:8px; background:var(--green-soft); color:var(--green)}
+.pave.monde b{font-size:15px; font-weight:650; letter-spacing:-.01em}
+.pave.monde i{font-style:normal; font-size:12.5px; opacity:.85}
+.pave.monde.beaucoup{background:var(--blue-soft); color:var(--blue)}
+
+.jours{display:flex; gap:8px; flex-wrap:wrap; margin:0 0 12px}
+.jour{display:inline-flex; align-items:baseline; gap:8px; padding:9px 15px;
+  border-radius:100px; background:var(--sunk); font-size:14.5px}
+.jour b{font-weight:650; text-transform:capitalize}
+.jour i{font-style:normal; font-size:13px; color:var(--ink-3)}
+.jour.mercredi{background:var(--green-soft); color:var(--green)}
+.jour.mercredi i{color:inherit; opacity:.8}
+.jour em{font-style:normal; font-size:12.5px; font-weight:600; opacity:.9}
+.jours-dit{margin:0 0 16px; font-size:14.5px; color:var(--ink-2); max-width:70ch}
+.jours-dit.petit{margin:-4px 0 12px; font-size:14px; color:var(--ink-3)}
+h2.sous-tas{margin-top:28px}
+.etiq.animaux{background:var(--amber-soft); color:var(--amber); font-weight:600}
+.piste.club .p-nom{font-size:17px}
+.etiq.ok{background:var(--green-soft); color:var(--green); font-weight:600}
+
+.toast{position:fixed; left:50%; bottom:28px; transform:translateX(-50%);
+  background:var(--ink); color:var(--ground); padding:12px 20px; border-radius:100px;
+  font-size:15px; box-shadow:var(--lift); z-index:50}
+.toast[hidden]{display:none}
+.souci{margin-top:20px; padding:16px 18px; border-radius:14px;
+  background:var(--red-soft); color:var(--red); font-size:15px}
+
+/* Les boutons qui envoient vraiment : vert plein, pour qu'on ne les
+   confonde pas avec ceux qui preparent le message. */
+button.env-direct{font:inherit; font-size:14.5px; font-weight:650;
+  padding:8px 15px; border-radius:10px; cursor:pointer;
+  background:var(--green); border:1px solid var(--green); color:#fff;
+  display:inline-flex; align-items:center; gap:6px}
+button.env-direct:hover{filter:brightness(1.08)}
+button.env-direct:disabled{opacity:.6; cursor:default}
+button.env-direct.fait{background:var(--sunk); color:var(--ink-3);
+  border-color:var(--line); font-weight:600}
+
+/* Changer de numero : discret a cote du bouton vert. */
+button.env-chg{font:inherit; font-size:13.5px; padding:7px 11px; border-radius:10px;
+  cursor:pointer; background:var(--sunk); color:var(--ink-2);
+  border:1px solid var(--line)}
+button.env-chg:hover{color:var(--ink); border-color:var(--blue)}
+.env-autre{display:inline-flex; gap:6px; align-items:center}
+.env-autre input{font:inherit; font-size:14.5px; padding:7px 10px; width:150px;
+  border-radius:10px; background:var(--card); color:var(--ink);
+  border:1px solid var(--line)}
+.env-autre input:focus{outline:none; border-color:var(--blue)}
+.env-autre button{font:inherit; font-size:14px; padding:7px 12px; border-radius:10px;
+  cursor:pointer; background:var(--blue); border:1px solid var(--blue); color:#fff}
+</style>
+<link rel="stylesheet" href="/nav.css">
+
+<script>
+  // Le theme choisi en bas du menu vaut pour tous les ecrans, pas seulement
+  // la plateforme. Pose avant tout rendu, sinon la page clignote.
+  try {
+    var t = localStorage.getItem('theme');
+    if (t === 'dark' || t === 'light') document.documentElement.dataset.theme = t;
+  } catch (e) {}
+</script>
+<link rel="stylesheet" href="/bitchat.css">
+</head>
+<body>
+<div class="wrap">
+
+  <header>
+    <span class="marque">SnapActions</span>
+  </header>
+
+  <h1>Les semaines à remplir</h1>
+  <p class="chapeau" id="chapeau">Lecture du calendrier…
+    <span style="color:var(--ink-3);font-size:14.5px">quelques secondes :
+    l’agenda est lu dans Calendrier.app, une semaine à la fois.</span></p>
+  <p class="source" id="source"></p>
+
+  <div class="bande" id="bande"></div>
+  <div class="detail" id="detail"></div>
+  <div class="souci" id="souci" hidden></div>
+
+</div>
+<div class="toast" id="toast" hidden></div>
+
+<script>
+/* ---------- outils ---------- */
+const $ = s => document.querySelector(s);
+
+function neud(balise, classe, texte){
+  const e = document.createElement(balise);
+  if (classe) e.className = classe;
+  if (texte != null) e.textContent = texte;
+  return e;
+}
+
+let minuteur = null;
+function toast(mot){
+  const t = $("#toast");
+  t.textContent = mot; t.hidden = false;
+  clearTimeout(minuteur);
+  minuteur = setTimeout(() => { t.hidden = true; }, 3200);
+}
+
+/* Ouvrir passe par le serveur : une adresse WhatsApp doit partir dans Chrome,
+   ou vit la session, pas dans le navigateur qui affiche cette page. */
+function ouvrirLien(url){
+  if (!url) return;
+  fetch("/api/ouvrir", {method: "POST",
+    headers: {"Content-Type": "application/json"},
+    body: JSON.stringify({url: url})})
+    .then(r => { if (!r.ok) throw new Error("refus"); })
+    .catch(() => window.open(url, "_blank", "noopener"));
+}
+
+const JOURS = ["dim.", "lun.", "mar.", "mer.", "jeu.", "ven.", "sam."];
+const MOIS = ["janv.", "févr.", "mars", "avr.", "mai", "juin",
+              "juil.", "août", "sept.", "oct.", "nov.", "déc."];
+
+function dateFr(iso, avecJour){
+  if (!iso) return "";
+  const d = new Date(iso + "T12:00:00");
+  if (isNaN(d)) return iso;
+  return (avecJour ? JOURS[d.getDay()] + " " : "") + d.getDate() + " " + MOIS[d.getMonth()];
+}
+
+function depuisQuand(iso){
+  if (!iso) return "à l’instant";
+  const m = Math.round((Date.now() - new Date(iso)) / 60000);
+  if (m < 1) return "à l’instant";
+  if (m === 1) return "il y a une minute";
+  if (m < 60) return "il y a " + m + " minutes";
+  return "il y a plus d’une heure";
+}
+
+function dansCombien(iso){
+  if (!iso) return null;
+  const d = new Date(iso + "T12:00:00");
+  const today = new Date(); today.setHours(12, 0, 0, 0);
+  return Math.round((d - today) / 86400000);
+}
+
+function duree(min){
+  if (min == null) return "";
+  if (min < 60) return min + " min";
+  const h = Math.floor(min / 60), m = min % 60;
+  return h + " h" + (m ? " " + String(m).padStart(2, "0") : "");
+}
+
+/* ---------- l'etat ---------- */
+const P = {semaines: [], clubs: [], choisie: null, ouverte: null, mots: {}};
+
+async function charger(frais){
+  try {
+    const r = await fetch("/api/semaines?semaines=12" + (frais ? "&frais=1" : ""));
+    if (!r.ok) throw new Error("le serveur a refusé (" + r.status + ")");
+    const d = await r.json();
+    P.semaines = d.semaines || [];
+    P.clubs = d.clubs_semaine || [];
+    peindreEntete(d);
+    /* On s'ouvre sur la premiere semaine a remplir, pas sur aujourd'hui :
+       cette page existe pour les trous, pas pour ce qui est deja cale. */
+    const creuse = P.semaines.filter(s => s.etat !== "plein")[0];
+    P.choisie = (creuse || P.semaines[0] || {}).lundi || null;
+    peindre();
+  } catch (e) {
+    /* Le message accusait Calendrier.app et ses autorisations quoi qu'il
+       arrive. Or neuf fois sur dix l'application venait simplement de
+       redemarrer, ou la lecture du calendrier depassait le temps imparti :
+       envoyer quelqu'un dans les Reglages Systeme pour ca, c'est lui faire
+       perdre son temps sur une piste fausse. On dit donc ce qui s'est
+       reellement passe, et on retente une fois tout seul. */
+    const reseau = /NetworkError|Failed to fetch|load failed|abort/i.test(e.message || "");
+    if (reseau && !charger._retente) {
+      charger._retente = true;
+      $("#chapeau").textContent = "L’application redémarrait — je réessaie…";
+      setTimeout(() => { charger._retente = false; charger(frais); }, 2500);
+      return;
+    }
+    $("#chapeau").textContent = "";
+    $("#souci").hidden = false;
+    $("#souci").textContent = reseau
+      ? "L’application n’a pas répondu (" + e.message + "). Elle redémarre "
+        + "peut-être, ou la lecture du calendrier a pris trop longtemps. "
+        + "Rechargez la page dans quelques secondes."
+      : "Impossible de lire le calendrier : " + e.message
+        + ". Le calendrier SnapActions doit exister dans Calendrier.app, "
+        + "et l’application doit avoir l’autorisation de le lire.";
+  }
+}
+
+function peindreEntete(d){
+  const n = d.n_creuses || 0;
+  const mot = n === 0
+    ? "Aucune semaine creuse sur les douze qui viennent. Rien à rattraper."
+    : n === 1 ? "Une semaine creuse dans les douze qui viennent."
+              : n + " semaines creuses dans les douze qui viennent.";
+  const suite = d.prochaine_creuse
+    ? " La première s'ouvre le "
+      + dateFr(d.prochaine_creuse, true).replace(/\.$/, "") + "."
+    : "";
+  $("#chapeau").innerHTML = "<b>" + mot + "</b>" + suite;
+  /* Lire le calendrier coute six secondes : c'est Apple, pas nous. On garde
+     donc la lecture en memoire — mais on dit toujours de quand elle date, et
+     un bouton la refait. Cacher sans le dire, c'est mentir sur l'agenda. */
+  const src = $("#source");
+  src.textContent = "";
+  src.appendChild(document.createTextNode(
+    "Lu dans « " + (d.source || "Calendrier") + " » " + depuisQuand(d.lu_le)
+    + ". Les pistes viennent de la veille : seules celles qui tombent dans la "
+    + "semaine et à portée de route sont proposées. "));
+  const relire = neud("button", "relire", "Relire le calendrier");
+  relire.type = "button";
+  relire.addEventListener("click", () => {
+    relire.disabled = true; relire.textContent = "Lecture…";
+    charger(true);
+  });
+  src.appendChild(relire);
+}
+
+function peindre(){
+  peindreBande();
+  peindreDetail();
+}
+
+function peindreBande(){
+  const b = $("#bande");
+  b.innerHTML = "";
+  P.semaines.forEach(s => {
+    const t = neud("button", "sem " + s.etat + (s.lundi === P.choisie ? " on" : ""));
+    t.type = "button";
+    t.appendChild(neud("span", "num", "sem. " + s.numero));
+    t.appendChild(neud("span", "quand",
+      dateFr(s.lundi) + " – " + dateFr(s.dimanche)));
+    t.appendChild(neud("span", "dit", s.dit));
+    t.addEventListener("click", () => {
+      P.choisie = s.lundi; P.ouverte = null; peindre();
+    });
+    b.appendChild(t);
+  });
+}
+
+function peindreDetail(){
+  const d = $("#detail");
+  d.innerHTML = "";
+  const s = P.semaines.filter(x => x.lundi === P.choisie)[0];
+  if (!s) return;
+
+  const titre = neud("div", "titre-sem");
+  titre.appendChild(document.createTextNode(
+    "Semaine " + s.numero + " · " + dateFr(s.lundi, true) + " au " + dateFr(s.dimanche, true)));
+  titre.appendChild(neud("span", "etat " + s.etat, s.dit));
+  d.appendChild(titre);
+
+  /* Ce qui est deja pose : c'est la raison pour laquelle la semaine n'est pas
+     vide, et ca evite de redemarcher un jour qui est pris. */
+  if (s.cale && s.cale.length) {
+    d.appendChild(neud("h2", null, "Déjà calé"));
+    const ul = neud("ul", "cale");
+    s.cale.forEach(c => {
+      const li = neud("li", c.week_end ? "we" : null);
+      li.appendChild(neud("span", "j", dateFr(c.jour, true)));
+      li.appendChild(neud("span", "quoi", c.titre || "Sans titre"));
+      if (c.week_end) li.appendChild(neud("span", "we-dit", "week-end"));
+      ul.appendChild(li);
+    });
+    d.appendChild(ul);
+  }
+
+  d.appendChild(neud("h2", null,
+    s.pistes && s.pistes.length
+      ? "Des dates à prendre cette semaine — " + s.pistes.length
+      : "Des dates à prendre cette semaine"));
+
+  if (!s.pistes || !s.pistes.length) {
+    /* « Semaine pourvue : rien a demarcher » etait faux, et cher. Un week-end
+       pris ne dit RIEN des jours de semaine — et c'est en semaine que se
+       vendent les seances studio. La page s'arretait ici : les quatre jours
+       libres et les treize clubs a contacter etaient calcules, envoyes au
+       navigateur, et jetes. On ne sort donc plus, on continue. */
+    d.appendChild(neud("p", "vide-dit", s.etat === "plein"
+      ? "Le week-end est pris. Aucune autre date repérée à portée de route — "
+        + "mais la semaine, elle, est ouverte : voyez plus bas."
+      : "Aucune date repérée sur cette semaine à portée de route. "
+        + "Lancez un scan depuis le Repérage pour en trouver."));
+  } else {
+    const grille = neud("div", "pistes");
+    s.pistes.forEach(p => grille.appendChild(cartePiste(p)));
+    d.appendChild(grille);
+  }
+  peindreSemaine(d, s);
+}
+
+/* Les jours ouvrables vides. Ils ne se remplissent pas avec un tournoi — il
+   n'y en a pas le mardi — mais avec un autre produit vendu aux memes gens :
+   une seance a l'entrainement, les portraits de l'equipe, un stage. On ne
+   propose donc pas des evenements mais des clubs, et d'abord ceux qui ont
+   deja dit oui une fois. */
+function peindreSemaine(d, s){
+  const jours = s.jours_libres || [];
+  const tas = P.clubs || {};
+  const n = (tas.relancer || []).length + (tas.demarcher || []).length;
+  if (!jours.length || !n) return;
+
+  d.appendChild(neud("h2", null, "Les jours de semaine libres"));
+
+  const bande = neud("div", "jours");
+  jours.forEach(j => {
+    const p = neud("span", "jour" + (j.mercredi ? " mercredi" : ""));
+    p.appendChild(neud("b", null, j.nom));
+    p.appendChild(neud("i", null, dateFr(j.jour)));
+    if (j.mercredi) p.appendChild(neud("em", null, "jour des entraînements"));
+    bande.appendChild(p);
+  });
+  d.appendChild(bande);
+
+  d.appendChild(neud("p", "jours-dit",
+    "Un mardi ne se remplit pas avec un tournoi : il n'y en a pas le mardi. "
+    + "Il se remplit avec une séance studio — les portraits des adhérents, "
+    + "montés sur place, vendus aux familles. Voici les fiches à contacter, "
+    + "à moins de trois quarts d'heure et sans date déjà posée."));
+
+  tasDeFiches(d, "À relancer", "Ils connaissent déjà la maison : il suffit de dire qu'il reste de la place.",
+              tas.relancer || []);
+  tasDeFiches(d, "À démarcher", "Jamais travaillé ensemble. Le message se présente avant de proposer.",
+              tas.demarcher || []);
+}
+
+function tasDeFiches(d, titre, dit, liste){
+  if (!liste.length) return;
+  d.appendChild(neud("h2", "sous-tas", titre + " — " + liste.length));
+  d.appendChild(neud("p", "jours-dit petit", dit));
+  const g = neud("div", "pistes");
+  liste.forEach(c => g.appendChild(carteClub(c)));
+  d.appendChild(g);
+}
+
+function cartePiste(p){
+  const c = neud("article", "piste");
+  const corps = neud("div", "piste-corps");
+
+  corps.appendChild(neud("div", "p-nom", p.name || "Sans nom"));
+  const ou = [p.sport, p.city].filter(Boolean).join(" \u00b7 ");
+  if (ou) corps.appendChild(neud("div", "p-ou", ou));
+
+  const faits = neud("div", "p-faits");
+
+  const jours = dansCombien(p.jour);
+  const date = neud("span", "pave date" + (p.week_end ? " we" : ""));
+  date.appendChild(document.createTextNode(dateFr(p.jour, true)));
+  if (jours != null) {
+    const i = neud("i", null, jours <= 0 ? "aujourd\u2019hui" : "dans " + jours + " j");
+    i.style.cssText = "font-style:normal;font-size:12.5px;font-weight:600;opacity:.85";
+    date.appendChild(i);
+  }
+  faits.appendChild(date);
+
+  if (p.distance_km != null) {
+    const r = neud("span", "pave route");
+    r.appendChild(neud("b", null, p.distance_km + " km"));
+    if (p.trajet_min != null) r.appendChild(neud("i", null, duree(p.trajet_min)));
+    faits.appendChild(r);
+  }
+
+  /* Le monde attendu : la seule donnee qui dit ce que la journee rapportera.
+     Elle est estimee d'apres le genre d'evenement et l'ecran le dit. */
+  if (p.ampleur && p.ampleur !== "peu") {
+    const a = neud("span", "pave monde " + p.ampleur);
+    a.appendChild(neud("b", null, p.ampleur === "foule" ? "Du monde" : "Pas mal de monde"));
+    a.appendChild(neud("i", null, p.ampleur_dit || ""));
+    faits.appendChild(a);
+  }
+
+  if (p.nb_equipes) {
+    const e = neud("span", "pave equipes");
+    e.appendChild(neud("b", null, String(p.nb_equipes)));
+    e.appendChild(neud("i", null, "\u00e9quipes"));
+    faits.appendChild(e);
+  }
+  corps.appendChild(faits);
+
+  const etiqs = neud("div", "etiqs");
+  if (p.jour_deja_pris) etiqs.appendChild(neud("span", "etiq pris", "ce jour est d\u00e9j\u00e0 pris"));
+  if (p.validation === "ecarte") etiqs.appendChild(neud("span", "etiq ecarte", "\u00e9cart\u00e9e au tri"));
+  if (!p.lieu_verifie) etiqs.appendChild(neud("span", "etiq", "lieu non v\u00e9rifi\u00e9"));
+  if (etiqs.children.length) corps.appendChild(etiqs);
+
+  c.appendChild(corps);
+
+  const barre = neud("div", "p-barre");
+  const voir = neud("button", null, P.ouverte === p.id ? "Replier" : "Voir le message");
+  voir.type = "button";
+  voir.addEventListener("click", () => {
+    P.ouverte = P.ouverte === p.id ? null : p.id;
+    peindreDetail();
+    if (P.ouverte === p.id) chargerMot(p.id);
+  });
+  barre.appendChild(voir);
+
+  const fiche = neud("button", null, "Ouvrir la fiche");
+  fiche.type = "button";
+  fiche.addEventListener("click", () => { window.location.href = "/index.html#/tournois"; });
+  barre.appendChild(fiche);
+  c.appendChild(barre);
+
+  if (P.ouverte === p.id) c.appendChild(panneauMot(p));
+  return c;
+}
+
+/* La recherche automatique, la meme que sur le Reperage : deux passes sur le
+   moteur, les pages lues, et les numeros extraits du texte — jamais ecrits
+   par un modele. */
+function boutonChercherOrganisateur(p, boite){
+  const d = neud("div", "gestes");
+  const b = neud("button", "primaire", "Chercher l’organisateur");
+  b.type = "button";
+  const sortie = neud("div", "trouve-ici");
+  b.addEventListener("click", async () => {
+    b.disabled = true; b.textContent = "Recherche sur le web…";
+    sortie.innerHTML = "";
+    try {
+      const r = await fetch("/api/tournaments/" + p.id + "/chercher-web",
+        {method: "POST", headers: {"Content-Type": "application/json"}, body: "{}"});
+      const j = await r.json();
+      if (!r.ok) throw new Error(j.error || "refus");
+      if (j.organisateur) {
+        sortie.appendChild(neud("p", "jours-dit", "Organisateur : " + j.organisateur));
+      }
+      const t = (j.trouves || []);
+      if (!t.length) {
+        sortie.appendChild(neud("p", "jours-dit",
+          "Rien de lisible sur " + (j.pages_lues || 0) + " page(s). Essayez Google."));
+      }
+      t.slice(0, 6).forEach(x => {
+        const l = neud("button", null, (x.format || x.email) + "  ·  "
+          + (x.source || "").slice(0, 40));
+        l.type = "button";
+        l.title = "Lu sur " + (x.page || "");
+        l.addEventListener("click", async () => {
+          try { await navigator.clipboard.writeText(x.numero || x.email); toast("Copié"); }
+          catch (e) { toast("Copie refusée"); }
+        });
+        sortie.appendChild(l);
+      });
+    } catch (e) {
+      sortie.appendChild(neud("p", "jours-dit", "Recherche impossible : " + e.message));
+    }
+    b.disabled = false; b.textContent = "Chercher encore";
+  });
+  d.appendChild(b);
+
+  const g = neud("button", null, "Ouvrir Google");
+  g.type = "button";
+  g.addEventListener("click", () => ouvrirLien("https://www.google.com/search?q="
+    + encodeURIComponent((p.name || "") + " " + (p.city || "") + " organisateur contact")));
+  d.appendChild(g);
+
+  const boiteTout = neud("div", null);
+  boiteTout.appendChild(d);
+  boiteTout.appendChild(sortie);
+  return boiteTout;
+}
+
+function panneauMot(p){
+  const m = neud("div", "mot");
+  const mot = P.mots[p.id];
+  if (!mot) { m.appendChild(neud("p", "avert", "R\u00e9daction du message\u2026")); return m; }
+  if (mot.erreur) {
+    /* « indisponible (404) » ne dit rien et ne mene nulle part. La seule
+       raison pour laquelle le serveur refuse, c'est qu'il ne sait pas a qui
+       ecrire : on le dit, et on propose d'aller le chercher. */
+    m.appendChild(neud("p", "avert",
+      /404/.test(mot.erreur)
+        ? "La source ne dit pas qui organise, et l’annonce ne donne ni numéro "
+          + "ni mail. Cherchez l’organisateur, et le message s’écrira."
+        : "Message indisponible : " + mot.erreur));
+    m.appendChild(boutonChercherOrganisateur(p, m));
+    return m;
+  }
+
+  if (mot.sans_destinataire) {
+    const a = neud("p", "avert");
+    a.appendChild(document.createTextNode("Organisateur connu : "));
+    a.appendChild(neud("b", null, mot.organisateur || ""));
+    a.appendChild(document.createTextNode(
+      " — mais ni numéro ni mail. Le message est écrit, il manque juste à qui l’envoyer."));
+    m.appendChild(a);
+    m.appendChild(boutonChercherOrganisateur(p, m));
+  }
+
+  const ta = document.createElement("textarea");
+  ta.value = mot.corps || "";
+  ta.id = "mot-" + p.id;
+  m.appendChild(ta);
+
+  /* La meme barre de reformulation que partout ailleurs. */
+  const ia = document.createElement("div");
+  ia.innerHTML = Reform.barre("mot-" + p.id,
+    [p.name, p.city].filter(Boolean).join(" · "));
+  m.appendChild(ia.firstElementChild);
+  setTimeout(() => Reform.brancher(m), 0);
+
+  const g = neud("div", "gestes");
+  const joignableWa = !!(window.Envoyer && window.Envoyer.mobile(mot.tel));
+
+  /* Les boutons qui envoient pour de bon, les memes que sur Reperage et
+     Repondre. Ceux d'avant n'ouvraient que la fenetre. */
+  const lire = () => (document.getElementById("mot-" + p.id) || {}).value || "";
+  const env = neud("div", "env-rang");
+  g.appendChild(env);
+  setTimeout(() => {
+    if (window.Envoyer) {
+      Envoyer.poser(env, {club_id: mot.club_id, tel: mot.tel, email: mot.mail,
+                          objet: mot.objet || p.name || "",
+                          draft_id: mot.draft_id, tournament_id: p.id,
+                          texte: lire});
+    }
+  }, 0);
+
+  const copier = neud("button", null, "Copier le texte");
+  copier.type = "button";
+  copier.addEventListener("click", async () => {
+    const t = (document.getElementById("mot-" + p.id) || {}).value || "";
+    try { await navigator.clipboard.writeText(t); toast("Message copi\u00e9"); }
+    catch (e) { toast("Copie refus\u00e9e par le navigateur"); }
+  });
+  g.appendChild(copier);
+
+  const cherche = neud("button", null, "Chercher le contact");
+  cherche.type = "button";
+  cherche.addEventListener("click", () => {
+    ouvrirLien("https://www.google.com/search?q="
+      + encodeURIComponent((p.name || "") + " " + (p.city || "") + " contact t\u00e9l\u00e9phone"));
+  });
+  g.appendChild(cherche);
+  m.appendChild(g);
+
+  m.appendChild(neud("p", "avert",
+    (joignableWa || mot.mail)
+      ? "Relisez avant d\u2019envoyer : le bouton vert l\u2019envoie pour de bon."
+      : "Aucun num\u00e9ro connu pour cette fiche. Collez-en un ci-dessous, "
+        + "ou cherchez le contact."));
+
+  if (!joignableWa) {
+    const ligne = neud("div", "coller");
+    const champ = document.createElement("input");
+    champ.type = "text";
+    champ.placeholder = "06 12 34 56 78";
+    ligne.appendChild(champ);
+    const go = neud("button", "bleu", "\u25b6 Envoyer sur WhatsApp");
+    go.type = "button";
+    go.addEventListener("click", async () => {
+      const brut = (champ.value || "").replace(/\D/g, "");
+      if (brut.length < 9) return toast("Num\u00e9ro incomplet");
+      const inter = brut.charAt(0) === "0" ? "33" + brut.slice(1) : brut;
+      const avant = go.textContent;
+      go.disabled = true; go.textContent = "Envoi\u2026";
+      try {
+        const r = await fetch("/api/envoyer/whatsapp", {method: "POST",
+          headers: {"Content-Type": "application/json"},
+          body: JSON.stringify({club_id: mot.club_id, tel: inter,
+                                corps: lire(), draft_id: mot.draft_id})});
+        const d = await r.json().catch(() => ({}));
+        if (!r.ok) throw new Error(d.error || "refus du serveur");
+        go.textContent = "\u2713 Envoy\u00e9";
+        toast("Parti sur WhatsApp \u00e0 " + d.a);
+      } catch (e) {
+        go.disabled = false; go.textContent = avant;
+        toast("\u00c9chec : " + e.message);
+      }
+    });
+    ligne.appendChild(go);
+    m.appendChild(ligne);
+  }
+  return m;
+}
+
+function carteClub(c){
+  const art = neud("article", "piste club");
+  const corps = neud("div", "piste-corps");
+  corps.appendChild(neud("div", "p-nom", c.name || ""));
+  const ou = [c.sport, c.city].filter(Boolean).join(" · ");
+  if (ou) corps.appendChild(neud("div", "p-ou", ou.slice(0, 90)));
+
+  const faits = neud("div", "p-faits");
+  if (c.trajet_min != null) {
+    const r = neud("span", "pave route");
+    r.appendChild(neud("b", null, c.trajet_min === 0 ? "sur place" : duree(c.trajet_min)));
+    if (c.trajet_min) r.appendChild(neud("i", null, "de route"));
+    faits.appendChild(r);
+  } else {
+    faits.appendChild(neud("span", "etiq", "route inconnue"));
+  }
+  if (c.partenaire) faits.appendChild(neud("span", "etiq ok", "partenaire"));
+  else if (c.status === "client") faits.appendChild(neud("span", "etiq ok", "déjà client"));
+  if (c.genre === "animaux") faits.appendChild(neud("span", "etiq animaux", "🐾 animaux"));
+  corps.appendChild(faits);
+
+  corps.appendChild(neud("p", "p-ou", c.pourquoi || ""));
+  art.appendChild(corps);
+
+  const barre = neud("div", "p-barre");
+  const num = numeroWa(c.phone);
+  const fixe = !!num && estFixe(c.phone);
+  if (num) {
+    const wa = neud("button", fixe ? "fixe" : "primaire",
+                    fixe ? "WhatsApp \u2014 ligne fixe" : "Proposer sur WhatsApp");
+    wa.type = "button";
+    if (fixe) wa.title = c.phone + " est une ligne fixe : WhatsApp n\u2019y passera pas.";
+    /* Ce bouton ouvrait « wa.me » avec un texte que Julien n'avait jamais
+       lu : la seule carte du CRM ou le message partait a l'aveugle. Premier
+       clic, le message s'affiche ; deuxieme clic, il part pour de bon. */
+    wa.addEventListener("click", async () => {
+      let z = art.querySelector(".p-mot");
+      if (z) { z.querySelector(".env-direct").click(); return; }
+      wa.disabled = true;
+      const avant = wa.textContent;
+      wa.textContent = "J\u2019\u00e9cris\u2026";
+      try {
+        const texte = await motSemaine(c);
+        if (!texte) throw new Error("message indisponible");
+        z = neud("div", "p-mot");
+        const ta = document.createElement("textarea");
+        ta.rows = 7;
+        ta.value = texte;
+        z.appendChild(ta);
+        const go = neud("button", "env-direct", "\u25b6 Envoyer sur WhatsApp");
+        go.type = "button";
+        go.addEventListener("click", () => {
+          if (!window.Envoyer) { toast("Module d\u2019envoi absent"); return; }
+          Envoyer.direct({tel: c.phone, corps: ta.value, club_id: c.id}, go);
+        });
+        z.appendChild(go);
+        z.appendChild(neud("small", null,
+          "Relisez : le bouton vert l\u2019envoie pour de bon."));
+        art.appendChild(z);
+      } catch (e) {
+        toast("\u00c9chec : " + e.message);
+      } finally {
+        wa.disabled = false;
+        wa.textContent = avant;
+      }
+    });
+    barre.appendChild(wa);
+
+    const tel = neud("button", fixe ? "primaire" : null, "Appeler");
+    tel.type = "button";
+    tel.addEventListener("click", () => ouvrirLien("tel:" + c.phone));
+    barre.appendChild(tel);
+  }
+  const cop = neud("button", null, "Copier le message");
+  cop.type = "button";
+  cop.addEventListener("click", async () => {
+    try { await navigator.clipboard.writeText(await motSemaine(c)); toast("Message copié"); }
+    catch (e) { toast("Copie refusée par le navigateur"); }
+  });
+  barre.appendChild(cop);
+  art.appendChild(barre);
+  return art;
+}
+
+/* Le mot studio ne s'ecrit plus ici. Cet ecran en avait un, l'ecran Studio en
+   avait un autre, et tous deux avaient maigri en route : ni galerie
+   intelligente, ni selection remise au club, ni la seance deja faite au
+   Basket Cannes Olympique. Il restait « je monte un petit studio chez les
+   clubs et les commerces », qui ne dit ni ce qu'on y gagne ni ce que ca
+   coute. Le serveur rend maintenant le texte des modeles — ceux que Julien
+   relit dans les reglages — et choisit tout seul entre le club, le salon de
+   toilettage, le portable et le mail. */
+const _motsStudio = {};
+async function motSemaine(c){
+  if (_motsStudio[c.id]) return _motsStudio[c.id];
+  try {
+    const r = await fetch("/api/studio/" + c.id + "/message");
+    const d = await r.json();
+    if (!r.ok) throw new Error(d.error || "indisponible");
+    _motsStudio[c.id] = d.corps || "";
+  } catch (e) {
+    toast("Message indisponible : " + (e.message || ""));
+    _motsStudio[c.id] = "";
+  }
+  return _motsStudio[c.id];
+}
+
+/* Memes regles que partout : wa.me veut les chiffres seuls, et une ligne fixe
+   ne porte pas WhatsApp — en France comme a Monaco. */
+function numeroWa(tel){
+  const brut = String(tel || "").replace(/\D/g, "").replace(/^00/, "");
+  const n = /^377/.test(brut) ? brut : brut.replace(/^0/, "33");
+  return n.length >= 10 ? n : "";
+}
+function estFixe(tel){
+  const brut = String(tel || "").replace(/\D/g, "").replace(/^00/, "");
+  if (/^377/.test(brut)) return /^3779/.test(brut) && brut.length === 11;
+  const n = brut.replace(/^0/, "33");
+  return /^33[1-59]/.test(n) && n.length === 11;
+}
+
+async function chargerMot(id){
+  if (P.mots[id]) return;
+  try {
+    const r = await fetch("/api/tournaments/" + id + "/message");
+    if (!r.ok) throw new Error("indisponible (" + r.status + ")");
+    P.mots[id] = await r.json();
+  } catch (e) {
+    P.mots[id] = {erreur: e.message};
+  }
+  if (P.ouverte === id) peindreDetail();
+}
+
+charger();
+</script>
+<script src="/reform.js"></script>
+<script src="/envoyer.js"></script>
+<script src="/nav.js"></script>
+<script src="/bitchat.js"></script>
+</body>
+</html>

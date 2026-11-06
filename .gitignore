@@ -1,0 +1,48 @@
+# ----------------------------------------------------------------------
+# Ce qui ne quitte JAMAIS le Mac.
+#
+# Le depot porte le code du CRM, pas ce que le CRM contient. Les clubs,
+# les numeros, les conversations WhatsApp, les photos des gamins et les
+# mots de passe restent ici. Un depot se clone, se forke et s'indexe :
+# ce qui y entre une fois n'en ressort plus.
+# ----------------------------------------------------------------------
+
+# La base et tout ce qui en derive
+data/
+*.db
+*.db-wal
+*.db-shm
+*.sqlite
+*.sqlite3
+*.log
+
+# Les donnees du terrain
+a-traiter/
+exports/
+photos/
+flyers/
+plaquettes/
+
+# Les binaires (cloudflared pese 39 Mo et s'installe, il ne se versionne pas)
+outils/bin/
+*.o
+*.dylib
+
+# Python
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+
+# macOS
+.DS_Store
+.AppleDouble
+Icon?
+
+# Reglages locaux de Claude Code (chemins et permissions de cette machine)
+.claude/settings.local.json
+
+# Sauvegardes de travail
+*.avant
+*~
+*.bak

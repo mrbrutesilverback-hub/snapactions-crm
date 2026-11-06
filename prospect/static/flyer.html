@@ -1,0 +1,315 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Déposer un flyer — SnapActions</title>
+<link rel="stylesheet" href="/cartes.css">
+<link rel="stylesheet" href="/nav.css">
+<style>
+/* Un seul geste sur cet ecran : poser un flyer et le faire lire. Le Reperage
+   montrait tout le reste en dessous, ce qui noyait la boite. Ici il n'y a
+   que la boite. */
+.boite{margin:26px 0 0; padding:38px 24px; border-radius:16px; text-align:center;
+  background:var(--sunk); border:2px dashed var(--line); cursor:pointer}
+.boite.chaud{border-color:var(--blue); background:var(--blue-soft)}
+.boite h2{margin:0; font-size:20px; font-weight:650}
+.boite p{margin:7px 0 0; color:var(--ink-3); font-size:15px}
+.boite .gestes{display:flex; gap:9px; justify-content:center; flex-wrap:wrap;
+  margin-top:16px}
+.boite button{font:inherit; font-size:15.5px; font-weight:600; padding:10px 20px;
+  border-radius:11px; cursor:pointer; background:var(--card); color:var(--ink);
+  border:1px solid var(--line)}
+.boite button.primaire{background:var(--green); border-color:var(--green); color:#fff}
+.boite button:disabled{opacity:.55; cursor:default}
+.boite input[type=file]{display:none}
+
+.attente{display:flex; gap:7px; flex-wrap:wrap; margin:16px 0 0}
+.puce{display:inline-flex; align-items:center; gap:7px; font-size:13.5px;
+  padding:5px 12px; border-radius:100px; background:var(--card);
+  border:1px solid var(--line); color:var(--ink-2); max-width:100%}
+.puce b{font-weight:600; overflow:hidden; text-overflow:ellipsis; white-space:nowrap}
+.puce button{font:inherit; font-size:14px; line-height:1; padding:0 2px;
+  background:none; border:0; color:var(--ink-3); cursor:pointer}
+.puce button:hover{color:var(--red)}
+
+.lu{margin:20px 0 0}
+.lu .item{padding:13px 16px; border-radius:13px; background:var(--card);
+  border:1px solid var(--line); margin-bottom:9px}
+.lu .item b{font-size:16px}
+.lu .item small{display:block; margin-top:3px; color:var(--ink-3); font-size:13.5px}
+.lu .souci{color:var(--amber); font-size:14px; margin:10px 0 0}
+.fiche-lue{padding:15px 17px; border-radius:14px; background:var(--card);
+  border:1px solid var(--green); margin-bottom:12px}
+.fiche-lue .f-ou{font-size:12.5px; color:var(--ink-3); margin-bottom:5px}
+.fiche-lue b{font-size:17px; display:block}
+.fiche-lue small{display:block; margin-top:3px; color:var(--ink-3); font-size:13.5px}
+.fiche-lue textarea{width:100%; box-sizing:border-box; margin-top:11px; font:inherit;
+  font-size:15px; line-height:1.5; padding:11px 13px; border-radius:11px;
+  resize:vertical; background:var(--sunk); color:var(--ink);
+  border:1px solid var(--line)}
+.fiche-lue textarea:focus{outline:none; border-color:var(--green)}
+.fiche-lue .faire{display:flex; gap:7px; flex-wrap:wrap; align-items:center;
+  margin-top:10px}
+.fiche-lue .faire a{font:inherit; font-size:14px; padding:7px 12px; border-radius:10px;
+  text-decoration:none; background:var(--sunk); color:var(--ink-2);
+  border:1px solid var(--line)}
+.fiche-lue .souci{color:var(--amber); font-size:14px; margin:10px 0 0}
+button.env-direct{font:inherit; font-size:14.5px; font-weight:650;
+  padding:8px 15px; border-radius:10px; cursor:pointer;
+  background:var(--green); border:1px solid var(--green); color:#fff}
+button.env-direct:hover{filter:brightness(1.08)}
+button.env-direct:disabled{opacity:.6; cursor:default}
+button.env-direct.fait{background:var(--sunk); color:var(--ink-3);
+  border-color:var(--line); font-weight:600}
+button.env-chg{font:inherit; font-size:13.5px; padding:7px 11px; border-radius:10px;
+  cursor:pointer; background:var(--sunk); color:var(--ink-2);
+  border:1px solid var(--line)}
+.env-autre{display:inline-flex; gap:6px; align-items:center}
+.env-autre input{font:inherit; font-size:14.5px; padding:7px 10px; width:150px;
+  border-radius:10px; background:var(--card); color:var(--ink);
+  border:1px solid var(--line)}
+.env-autre button{font:inherit; font-size:14px; padding:7px 12px; border-radius:10px;
+  cursor:pointer; background:var(--blue); border:1px solid var(--blue); color:#fff}
+.fiche-lue .faire button:not(.env-direct):not(.env-chg){font:inherit; font-size:14px;
+  padding:7px 12px; border-radius:10px; cursor:pointer; background:var(--sunk);
+  color:var(--ink); border:1px solid var(--line)}
+[hidden]{display:none !important}
+</style>
+<script>
+  // Le theme choisi en bas du menu vaut pour tous les ecrans, pas seulement
+  // la plateforme. Pose avant tout rendu, sinon la page clignote.
+  try {
+    var t = localStorage.getItem('theme');
+    if (t === 'dark' || t === 'light') document.documentElement.dataset.theme = t;
+  } catch (e) {}
+</script>
+<link rel="stylesheet" href="/bitchat.css">
+</head>
+<body>
+<div class="wrap">
+  <div class="marque">SnapActions</div>
+  <h1>Déposer un flyer</h1>
+  <p class="chapeau" id="chapeau">Affiche, plaquette, photo d’écran. Le CRM lit la date, le club et le lieu.</p>
+
+  <div class="boite" id="boite">
+    <h2>Posez le flyer ici</h2>
+    <p>Glissez un fichier, collez une image avec ⌘V, ou cliquez pour choisir.</p>
+    <div class="gestes">
+      <button type="button" class="primaire" id="analyser">Analyser maintenant</button>
+      <button type="button" id="choisir">Choisir des fichiers</button>
+    </div>
+    <input type="file" id="fichier" multiple accept="image/*,.pdf,.heic,.heif">
+  </div>
+
+  <div class="attente" id="attente"></div>
+  <div class="lu" id="lu"></div>
+</div>
+<div class="toast" id="toast" hidden></div>
+
+<script>
+function $(s){ return document.querySelector(s); }
+function neud(b, c, t){ const e = document.createElement(b); if (c) e.className = c;
+  if (t != null) e.textContent = t; return e; }
+let minuteur = null;
+function toast(m){ const t = $("#toast"); t.textContent = m; t.hidden = false;
+  clearTimeout(minuteur); minuteur = setTimeout(() => { t.hidden = true; }, 2800); }
+
+const boite = $("#boite"), champ = $("#fichier");
+
+/* Ce qui attend dans la boite, avec de quoi retirer une erreur. */
+async function rafraichir(){
+  const z = $("#attente");
+  try {
+    const d = await (await fetch("/api/depot")).json();
+    z.innerHTML = "";
+    (d.en_attente || []).forEach(nom => {
+      const p = neud("span", "puce");
+      p.appendChild(neud("b", null, nom));
+      const x = neud("button", null, "✕");
+      x.type = "button";
+      x.title = "Retirer de la boîte";
+      x.addEventListener("click", async e => {
+        e.stopPropagation();
+        try {
+          const r = await fetch("/api/depot/supprimer", {method: "POST",
+            headers: {"Content-Type": "application/json"},
+            body: JSON.stringify({nom: nom})});
+          if (!r.ok) throw new Error("refusé");
+          rafraichir();
+        } catch (err) { toast("Retrait impossible"); }
+      });
+      p.appendChild(x);
+      z.appendChild(p);
+    });
+    $("#chapeau").textContent = (d.en_attente || []).length
+      ? (d.en_attente.length === 1 ? "1 flyer attend d’être lu."
+                                   : d.en_attente.length + " flyers attendent d’être lus.")
+      : "Affiche, plaquette, photo d’écran. Le CRM lit la date, le club et le lieu.";
+  } catch (e) { /* boite illisible : on n'empeche pas de deposer */ }
+}
+
+async function envoyer(fichiers){
+  if (!fichiers || !fichiers.length) return;
+  const fd = new FormData();
+  for (const f of fichiers) fd.append("fichier", f, f.name);
+  try {
+    const r = await fetch("/api/depot", {method: "POST", body: fd});
+    /* Le serveur dit POURQUOI il refuse — format, poids, champ vide. « refusé »
+       tout court envoyait chercher la raison dans le journal. */
+    const d = await r.json().catch(() => ({}));
+    if (!r.ok) throw new Error(d.error || "refusé");
+    const n = (d.noms || []).length || 1;
+    toast(n === 1 ? "Flyer déposé" : n + " flyers déposés");
+    if ((d.refuses || []).length) toast("Non déposé — " + d.refuses.join(" ; "));
+    rafraichir();
+  } catch (e) { toast("Dépôt impossible : " + e.message); }
+}
+
+$("#choisir").addEventListener("click", e => { e.stopPropagation(); champ.click(); });
+boite.addEventListener("click", e => {
+  if (e.target.tagName === "BUTTON") return;
+  champ.click();
+});
+champ.addEventListener("change", () => { envoyer(champ.files); champ.value = ""; });
+
+["dragenter", "dragover"].forEach(ev =>
+  boite.addEventListener(ev, e => { e.preventDefault(); boite.classList.add("chaud"); }));
+boite.addEventListener("dragleave", e => {
+  if (boite.contains(e.relatedTarget)) return;
+  boite.classList.remove("chaud");
+});
+boite.addEventListener("drop", e => {
+  e.preventDefault();
+  boite.classList.remove("chaud");
+  envoyer(e.dataTransfer && e.dataTransfer.files);
+});
+
+/* Coller une image copiee depuis Facebook : c'est le geste le plus rapide. */
+document.addEventListener("paste", e => {
+  const items = (e.clipboardData && e.clipboardData.items) || [];
+  const f = [];
+  for (const it of items) {
+    if (it.kind === "file") { const b = it.getAsFile(); if (b) f.push(b); }
+  }
+  if (f.length) { e.preventDefault(); envoyer(f); }
+});
+
+/* La lecture. Ce qui en sort s'affiche ICI : le flyer devient une fiche. */
+$("#analyser").addEventListener("click", async e => {
+  e.stopPropagation();
+  const b = e.currentTarget, avant = b.textContent;
+  b.disabled = true; b.textContent = "Lecture en cours…";
+  const z = $("#lu");
+  z.innerHTML = "";
+  try {
+    const r = await fetch("/api/depot/analyser", {method: "POST",
+      headers: {"Content-Type": "application/json"}, body: "{}"});
+    const d = await r.json();
+    if (!r.ok) throw new Error(d.error || "refusé");
+    if (!(d.items || []).length && !(d.soucis || []).length) {
+      z.appendChild(neud("p", "vide", "Rien à lire dans la boîte."));
+    }
+    /* La fiche s'ouvre ICI. Elle partait au Reperage : il fallait changer
+       d'ecran, retrouver la carte parmi trois cents, et on perdait le fil du
+       flyer qu'on venait de lire. */
+    const ids = (d.items || []).map(it => (it.tournoi || {}).id).filter(Boolean);
+    let fiches = [];
+    if (ids.length) {
+      try {
+        const r2 = await fetch("/api/tournaments/a-valider?ids=" + ids.join(","));
+        fiches = ((await r2.json()) || {}).items || [];
+      } catch (e) { /* sans la fiche complete, on garde le resume */ }
+    }
+    const parId = {};
+    fiches.forEach(f => parId[f.id] = f);
+
+    (d.items || []).forEach(it => {
+      const f = parId[(it.tournoi || {}).id];
+      if (f) { z.appendChild(carte(f, it)); return; }
+      /* Pas de fiche complete : le resume, comme avant. */
+      const l = neud("div", "item");
+      const club = (it.club || {}).nom, tournoi = (it.tournoi || {}).nom;
+      l.appendChild(neud("b", null, tournoi || club || it.fichier));
+      const bouts = [];
+      if (club && tournoi) bouts.push(club);
+      if ((it.tournoi || {}).date) bouts.push(it.tournoi.date);
+      if ((it.tournoi || {}).ville) bouts.push(it.tournoi.ville);
+      l.appendChild(neud("small", null, bouts.join(" · ") || it.fichier));
+      z.appendChild(l);
+    });
+    (d.soucis || []).forEach(s => z.appendChild(neud("p", "souci", s)));
+    if ((d.items || []).length) toast(d.items.length + " fiche(s) créée(s)");
+    rafraichir();
+  } catch (err) {
+    z.appendChild(neud("p", "souci", "Lecture impossible : " + err.message));
+  }
+  b.disabled = false; b.textContent = avant;
+});
+
+/* La carte d'une fiche qui vient d'etre lue sur un flyer : ce qu'on a
+   compris, le message deja ecrit, et les boutons qui l'envoient. Ce sont
+   exactement ceux des autres ecrans — envoyer.js les pose. */
+function carte(f, it){
+  const c = neud("div", "fiche-lue");
+  c.appendChild(neud("div", "f-ou", "lu sur " + (it.fichier || "le flyer")));
+  c.appendChild(neud("b", null, f.name || "Sans nom"));
+  const bouts = [f.start_date, f.city, f.sport].filter(Boolean);
+  if (f.trajet_min != null) bouts.push(f.trajet_min + " min de route");
+  if (f.nb_equipes) bouts.push(f.nb_equipes + " équipes");
+  c.appendChild(neud("small", null, bouts.join(" · ")));
+
+  const dr = f.draft || {};
+  if (!dr.body) {
+    c.appendChild(neud("p", "souci", f.club_id
+      ? "Pas de message prêt pour cette fiche."
+      : "Aucun club rattaché : il manque à qui écrire."));
+  } else {
+    const ta = document.createElement("textarea");
+    ta.id = "mot-flyer-" + f.id;
+    ta.rows = 8;
+    ta.value = dr.body || "";
+    c.appendChild(ta);
+
+    if (window.Reform) {
+      const barre = document.createElement("div");
+      barre.innerHTML = Reform.barre("mot-flyer-" + f.id,
+        [f.name, f.city].filter(Boolean).join(" · "));
+      if (barre.firstElementChild) c.appendChild(barre.firstElementChild);
+      setTimeout(() => Reform.brancher(c), 0);
+    }
+
+    const g = neud("div", "faire");
+    if (window.Envoyer) {
+      Envoyer.poser(g, {club_id: f.club_id, tel: dr.contact_phone || f.club_phone,
+                        email: dr.contact_email || f.club_email,
+                        objet: dr.subject || "", draft_id: dr.id,
+                        tournament_id: f.id,
+                        texte: () => ta.value});
+    }
+    const cp = neud("button", null, "Copier");
+    cp.type = "button";
+    cp.addEventListener("click", async () => {
+      try { await navigator.clipboard.writeText(ta.value); toast("Copié"); }
+      catch (e) { ta.select(); toast("Sélectionné — Cmd+C"); }
+    });
+    g.appendChild(cp);
+    c.appendChild(g);
+  }
+
+  const bas = neud("div", "faire");
+  const ouvrir = neud("a", null, "Ouvrir dans Repérage ↗");
+  ouvrir.href = "/?ids=" + f.id;
+  bas.appendChild(ouvrir);
+  c.appendChild(bas);
+  return c;
+}
+
+rafraichir();
+</script>
+<script src="/envoyer.js"></script>
+<script src="/reform.js"></script>
+<script src="/nav.js"></script>
+<script src="/bitchat.js"></script>
+</body>
+</html>

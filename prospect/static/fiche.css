@@ -1,0 +1,70 @@
+/* La carte, telle qu'elle est dessinée dans Repérage.
+   -------------------------------------------------
+   Ces règles vivaient uniquement dans simple.html. Le Dispatch les reprend :
+   deux écrans qui montrent la même chose — une date, un lieu, une distance,
+   une décision à prendre — ne doivent pas se dessiner autrement, sinon il
+   faut réapprendre à lire à chaque fois.
+
+   À faire quand Repérage pourra être revérifié à l'écran : supprimer le bloc
+   équivalent de simple.html et lui faire charger ce fichier. Pour l'instant
+   les règles y restent, pour ne pas toucher à l'écran principal sans pouvoir
+   le regarder. */
+
+.f-source{font-size:12px; letter-spacing:.04em; text-transform:uppercase;
+  color:var(--ink-3); font-weight:600; margin-bottom:9px}
+.f-club{font-size:19px; font-weight:600; letter-spacing:-.012em; line-height:1.25;
+  overflow-wrap:anywhere}
+.f-sport{display:inline-block; margin-right:9px; font-size:20px; line-height:1;
+  vertical-align:-1px; cursor:help}
+.f-tournoi{font-size:16px; color:var(--ink-2); margin-top:4px}
+
+.f-quand{display:flex; align-items:center; gap:9px; flex-wrap:wrap; margin-top:11px}
+.f-date{font-size:18px; font-weight:650; letter-spacing:-.01em; color:var(--ink);
+  background:var(--sunk); border-radius:100px; padding:9px 17px; white-space:nowrap;
+  border:1.5px solid transparent; display:inline-flex; align-items:baseline; gap:9px}
+.f-reste{font-style:normal; font-size:13.5px; font-weight:600; opacity:.85;
+  font-variant-numeric:tabular-nums}
+.f-date.urgent{border-color:var(--red, #c0392b); color:var(--red, #c0392b);
+  background:rgba(192,57,43,.10)}
+.f-date.bientot{border-color:var(--amber); color:var(--amber);
+  background:rgba(180,120,10,.10)}
+.f-date.passe{opacity:.55}
+.f-ou{font-size:14.5px; color:var(--ink-3); min-width:0; overflow-wrap:anywhere}
+
+.f-booke{display:flex; flex-direction:column; gap:3px; margin-top:9px;
+  padding:10px 14px; border-radius:11px; background:var(--green-soft);
+  border:1px solid var(--green)}
+.f-booke b{font-size:14.5px; font-weight:700; color:var(--green)}
+.f-booke span{font-size:13.5px; color:var(--ink-2); overflow-wrap:anywhere}
+.f-pris{display:flex; flex-direction:column; gap:3px; margin-top:9px;
+  padding:9px 13px; border-radius:11px; background:var(--violet-soft);
+  border:1px solid var(--violet)}
+.f-pris b{font-size:13.5px; font-weight:700; color:var(--violet);
+  letter-spacing:.01em}
+.f-pris span{font-size:13.5px; color:var(--ink-2); overflow-wrap:anywhere}
+
+.f-paves{display:grid; grid-template-columns:1fr; gap:10px; margin-top:14px}
+.f-dist{margin-top:0; padding:14px 16px; border-radius:14px;
+  background:var(--sunk); display:flex; align-items:baseline; gap:10px; flex-wrap:wrap}
+.f-km{font-size:27px; font-weight:600; letter-spacing:-.02em; line-height:1.05;
+  font-variant-numeric:tabular-nums}
+.f-min{font-size:20px; font-weight:600; letter-spacing:-.012em; color:var(--ink);
+  font-variant-numeric:tabular-nums}
+.f-min::before{content:"·"; margin-right:9px; color:var(--ink-3); font-weight:400}
+.f-verdict{margin-left:auto; font-size:14px; font-weight:600; white-space:nowrap;
+  background:var(--card); border-radius:100px; padding:5px 13px; color:var(--ink-2)}
+.f-dist.proche, .f-dist.correct{background:rgba(29,131,72,.12)}
+.f-dist.proche .f-verdict, .f-dist.correct .f-verdict{color:var(--green)}
+.f-dist.loin{background:rgba(138,97,0,.14)}
+.f-dist.loin .f-verdict{color:var(--amber)}
+.f-dist.hors{background:rgba(178,63,13,.14)}
+.f-dist.hors .f-verdict{color:#B23F0D}
+.f-dist.inconnu .f-km{font-size:19px; font-weight:500; color:var(--ink-3)}
+
+.f-bloc{margin-top:20px}
+.f-lab{font-size:12px; letter-spacing:.05em; text-transform:uppercase;
+  color:var(--ink-3); font-weight:600}
+.f-faits{display:flex; gap:8px; flex-wrap:wrap; margin-top:10px}
+.f-fait{font-size:14px; color:var(--ink-2); background:var(--sunk);
+  border-radius:100px; padding:6px 13px}
+.f-rien{font-size:15px; color:var(--ink-3); margin-top:9px}

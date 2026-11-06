@@ -1,0 +1,1015 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Chercher — SnapActions</title>
+<style>
+
+/* La recherche libre. Une phrase (« puppy painting a Nice »), l'IA locale la
+   comprend — sujet, synonymes, anglais, ville — et le serveur cherche dans la
+   base et dans DATAtourisme. Facebook et Google ne se lisent pas tout seuls :
+   la page prepare les recherches, Chrome les ouvre. Meme langage visuel que
+   le Reperage. */
+:root{
+  --ground:#F2F5F8; --card:#FFFFFF; --sunk:#EDF1F6;
+  --ink:#0F1621; --ink-2:#2C3845; --ink-3:#5D6975;
+  --line:#DCE3EB; --line-soft:#E7ECF2;
+  --blue:#0A6CF0; --blue-ink:#FFFFFF; --blue-soft:#E8F1FE;
+  --green:#0C9A6C; --green-soft:#E0F5EE;
+  --amber:#AD6200; --amber-soft:#FBF1E0;
+  --red:#DC2626; --red-soft:#FDECEC;
+  --lift:0 1px 2px rgba(15,22,33,.05), 0 12px 32px -20px rgba(15,22,33,.26);
+}
+@media (prefers-color-scheme:dark){
+  :root{
+    --ground:#0D1117; --card:#151B23; --sunk:#1E2630;
+    --ink:#E6EDF3; --ink-2:#C3CEDA; --ink-3:#8B97A4;
+    --line:#2A333F; --line-soft:#232C36;
+    --blue:#4C9AFF; --blue-ink:#FFFFFF; --blue-soft:#102642;
+    --green:#3FD68C; --green-soft:#0E2E22;
+    --amber:#E8B44B; --amber-soft:#2F2611;
+    --red:#FF7B72; --red-soft:#331F1D;
+    --lift:0 1px 2px rgba(0,0,0,.5), 0 14px 36px -20px rgba(0,0,0,.9);
+  }
+}
+*{box-sizing:border-box}
+body{margin:0; background:var(--ground); color:var(--ink);
+  font-family:-apple-system,BlinkMacSystemFont,"SF Pro Text","Helvetica Neue",Arial,sans-serif;
+  font-size:17px; line-height:1.47; -webkit-font-smoothing:antialiased}
+.wrap{max-width:820px; margin:0 auto; padding:0 24px 80px}
+
+header{display:flex; align-items:center; gap:14px; padding:18px 0 0}
+.marque{font-size:13px; letter-spacing:.05em; text-transform:uppercase;
+  color:var(--ink-3); font-weight:600}
+h1{font-size:30px; line-height:1.18; letter-spacing:-.02em; font-weight:650;
+  margin:34px 0 6px}
+.chapeau{margin:0; color:var(--ink-2); font-size:16px}
+
+button{font:inherit; cursor:pointer; border:0; border-radius:12px; padding:13px 22px;
+  font-weight:500; font-size:16px}
+button:focus-visible{outline:3px solid var(--blue); outline-offset:2px}
+button[disabled]{opacity:.6; cursor:default}
+.primary{background:var(--blue); color:var(--blue-ink)}
+.primary:hover{filter:brightness(1.08)}
+.petit{background:var(--sunk); color:var(--ink); border:1px solid var(--line-soft);
+  padding:7px 13px; font-size:14px; border-radius:10px; white-space:nowrap}
+.petit:hover{background:var(--line-soft)}
+
+.barre{display:flex; gap:8px; margin-top:22px}
+.barre input{flex:1; min-width:0; font:inherit; font-size:17px; color:var(--ink);
+  background:var(--card); border:1px solid var(--line); border-radius:12px;
+  padding:12px 15px; outline:none}
+.barre input:focus{border-color:var(--blue); box-shadow:0 0 0 3px var(--blue-soft)}
+
+.dit{font-size:14px; color:var(--ink-3); margin:14px 0 4px}
+.dit b{color:var(--ink-2); font-weight:600}
+
+/* La reponse passe avant les listes : c'est ce qu'on est venu chercher. Une
+   liste n'est pas une reponse — a « qu'est-ce que la natation m'a dit », on
+   veut la phrase, pas quinze cartes a relire. Les fiches qui l'ont nourrie
+   restent dessous : une reponse qui ne se verifie pas ne vaut rien. */
+.reponse{margin:18px 0 6px; padding:17px 19px; border-radius:15px;
+  background:var(--blue-soft); border:1px solid var(--blue)}
+.reponse .texte{margin:0; font-size:17.5px; line-height:1.5; color:var(--ink);
+  white-space:pre-wrap}
+.reponse .appui{margin:9px 0 0; font-size:13.5px; color:var(--ink-3)}
+.reponse .gestes-rep{display:flex; gap:8px; flex-wrap:wrap; margin:13px 0 0}
+
+/* La prospection : aller chercher ce qu'on n'a PAS. La recherche ordinaire
+   fouille ce que Julien connait deja ; a « des clubs autour de Draguignan »
+   elle repondait « rien dans la base », ce qui est vrai et inutile. */
+.barre.prospect{margin-top:9px}
+.barre.prospect input{flex:1}
+.barre.prospect select{font:inherit; font-size:15px; padding:9px 10px;
+  border-radius:11px; background:var(--sunk); color:var(--ink);
+  border:1px solid var(--line)}
+.neuf{margin:16px 0 0; border:1px solid var(--line); border-radius:15px;
+  overflow:hidden; background:var(--card)}
+.neuf .tete{padding:12px 16px; background:var(--sunk); font-size:14px;
+  color:var(--ink-2); border-bottom:1px solid var(--line-soft)}
+.neuf .tete b{color:var(--ink)}
+.candidat{display:flex; align-items:center; gap:12px; padding:11px 16px;
+  border-bottom:1px solid var(--line-soft); flex-wrap:wrap}
+.candidat:last-child{border-bottom:0}
+.candidat .km{font-variant-numeric:tabular-nums; font-size:13.5px;
+  color:var(--ink-3); min-width:58px}
+.candidat .qui{flex:1; min-width:180px}
+.candidat .qui b{display:block; font-weight:600; font-size:15.5px}
+.candidat .qui small{color:var(--ink-3); font-size:13px}
+.candidat .faire{display:flex; gap:6px; flex-wrap:wrap}
+
+/* Les questions qu'on repose toutes les nuits. */
+.routines{display:flex; gap:7px; flex-wrap:wrap; align-items:center; margin:12px 0 0}
+.routine{display:inline-flex; align-items:center; gap:2px; background:var(--sunk);
+  border:1px solid var(--line-soft); border-radius:100px; padding:2px 4px 2px 2px}
+.routine button{font:inherit; font-size:13.5px; background:none; border:0;
+  color:var(--ink-2); cursor:pointer; padding:5px 9px; border-radius:100px}
+.routine button:hover{color:var(--ink)}
+.routine button.x{color:var(--ink-3); padding:5px 8px}
+.routine button.x:hover{color:var(--red)}
+.liens{display:flex; flex-wrap:wrap; gap:6px; margin:10px 0 6px}
+
+.ligne{display:flex; gap:14px; align-items:flex-start; background:var(--card);
+  border:1px solid var(--line-soft); border-radius:14px; padding:12px 14px; margin-top:8px}
+.ligne .txt{flex:1; min-width:0; font-size:16px; line-height:1.35}
+.ligne .txt small{display:block; color:var(--ink-3); font-size:13.5px; margin-top:3px}
+.ligne .txt p{margin:6px 0 0; color:var(--ink-2); font-size:14px;
+  display:-webkit-box; -webkit-line-clamp:3; -webkit-box-orient:vertical; overflow:hidden}
+.ligne .act{display:flex; flex-direction:column; gap:6px; flex:none}
+.ici{color:var(--green); font-weight:600}
+
+/* Les cartes de la memoire : meme langage que le Reperage. Une carte par club,
+   ou tout ce qui sert a le rappeler tient d'un coup d'oeil — ou on en est, qui
+   joindre, et les boutons pour le faire. */
+.cartes{display:grid; grid-template-columns:repeat(auto-fill, minmax(330px, 1fr));
+  gap:14px; margin-top:10px; align-items:start}
+.carte{background:var(--card); border:1px solid var(--line-soft); border-radius:16px;
+  box-shadow:var(--lift); padding:16px 16px 14px; min-width:0}
+.carte.premiere{grid-column:1 / -1; border-color:var(--blue);
+  box-shadow:0 0 0 2px var(--blue-soft), var(--lift)}
+.f-source{font-size:12px; letter-spacing:.04em; text-transform:uppercase;
+  color:var(--ink-3); font-weight:600; margin-bottom:8px}
+.f-club{font-size:19px; font-weight:600; letter-spacing:-.012em; line-height:1.25;
+  overflow-wrap:anywhere}
+.carte.premiere .f-club{font-size:23px}
+.f-quand{display:flex; align-items:center; gap:8px; flex-wrap:wrap; margin-top:10px}
+.f-statut{font-size:14px; font-weight:650; border-radius:100px; padding:5px 13px;
+  background:var(--sunk); color:var(--ink-2); white-space:nowrap}
+.f-statut.chaud{background:var(--green-soft); color:var(--green)}
+.f-statut.stop{background:var(--red-soft); color:var(--red)}
+.f-ou{font-size:14.5px; color:var(--ink-3); min-width:0; overflow-wrap:anywhere}
+
+.f-lab{font-size:12px; letter-spacing:.05em; text-transform:uppercase;
+  color:var(--ink-3); font-weight:600; margin:16px 0 7px}
+.f-wa{background:var(--sunk); border-radius:14px; padding:11px 14px}
+.f-wa .etat{font-size:14px; font-weight:600; color:var(--ink-2)}
+.f-wa .etat.attente{color:var(--amber)}
+.f-wa .etat.repondu{color:var(--green)}
+.f-wa p{margin:5px 0 0; font-size:14.5px; color:var(--ink-2); white-space:pre-line;
+  display:-webkit-box; -webkit-line-clamp:3; -webkit-box-orient:vertical; overflow:hidden}
+.carte.premiere .f-wa p{-webkit-line-clamp:6}
+
+.f-qui{display:flex; align-items:center; gap:10px; flex-wrap:wrap; padding:9px 0;
+  border-top:1px solid var(--line-soft)}
+.f-qui:first-of-type{border-top:0; padding-top:2px}
+.f-qui .nom{font-size:15.5px; font-weight:600; min-width:0}
+.f-qui .nom small{font-weight:400; color:var(--ink-3); font-size:13.5px; margin-left:4px}
+.f-tel{font-size:17px; font-weight:600; letter-spacing:.01em; color:var(--ink);
+  font-variant-numeric:tabular-nums; user-select:all; white-space:nowrap}
+.f-tel.fixe::after{content:" fixe"; font-size:12.5px; font-weight:500; color:var(--ink-3)}
+.f-mail{font-size:14.5px; color:var(--ink-2); overflow-wrap:anywhere; user-select:all}
+.f-qui .boutons{margin-left:auto; display:flex; gap:6px}
+.f-note{margin:12px 0 0; font-size:14px; color:var(--ink-3);
+  display:-webkit-box; -webkit-line-clamp:2; -webkit-box-orient:vertical; overflow:hidden}
+
+.carte-barre{margin-top:14px; display:flex; gap:8px; flex-wrap:wrap}
+.carte-barre button{padding:10px 18px; font-size:14.5px; font-weight:600;
+  border-radius:12px; border:1.6px solid transparent}
+.carte-barre .wa{background:var(--green); color:#fff}
+.carte-barre .wa:hover{filter:brightness(1.08)}
+.carte-barre .voir{background:transparent; color:var(--blue); border-color:var(--blue)}
+.carte-barre .voir:hover{background:var(--blue-soft)}
+.carte-barre .source{background:transparent; color:var(--ink-2); border-color:var(--line)}
+.carte-barre .source:hover{color:var(--ink); border-color:var(--ink-3)}
+.mini{background:var(--sunk); color:var(--ink); border:1px solid var(--line-soft);
+  padding:6px 11px; font-size:13.5px; border-radius:9px; font-weight:500}
+.mini:hover{background:var(--line-soft)}
+.mini.vert{color:var(--green); border-color:var(--green-soft); background:var(--green-soft)}
+
+.toast{position:fixed; left:50%; bottom:26px; transform:translate(-50%,160%);
+  background:var(--ink); color:var(--ground); padding:12px 20px; border-radius:12px;
+  font-size:15px; transition:transform .28s cubic-bezier(.4,1.2,.5,1); z-index:50; max-width:88vw}
+.toast.on{transform:translate(-50%,0)}
+@media (prefers-reduced-motion:reduce){*{transition:none!important}}
+@media (max-width:560px){
+  .ligne{flex-direction:column}
+  .ligne .act{flex-direction:row}
+  .cartes{grid-template-columns:1fr}
+  .f-qui .boutons{margin-left:0}
+}
+
+/* L'attribut hidden doit gagner. Sans cette regle, une classe qui declare
+   display:flex ou grid reste visible malgre hidden : le bandeau s'affichait
+   vide, comme une bande de couleur sans texte. */
+[hidden]{display:none !important}
+.groupe{margin:16px 0 0}
+.groupe h3{margin:0 0 7px; font-size:15px; font-weight:650; color:var(--ink-2)}
+.ligne-res{display:flex; align-items:baseline; gap:10px; flex-wrap:wrap;
+  padding:10px 14px; border-radius:11px; background:var(--sunk);
+  border:1px solid var(--line); margin-bottom:7px}
+.ligne-res b{font-size:16px}
+.ligne-res small{color:var(--ink-3); font-size:13.5px}
+.angles{display:flex; gap:7px; flex-wrap:wrap; margin:0 0 11px}
+.demarche{flex:1 1 100%; margin-top:12px; padding-top:12px;
+  border-top:1px solid var(--line)}
+.demarche .dit{margin:0 0 8px}
+/* Le panneau de message, repris de cartes.css : on copie les regles
+   utiles plutot que d'importer la feuille entiere, qui changerait
+   l'apparence de cette page. */
+.causerie{margin-top:11px; padding-top:11px; border-top:1px solid var(--line)}
+.causerie .dits{display:flex; flex-direction:column; gap:5px; margin-bottom:8px}
+.causerie .dit{align-self:flex-end; max-width:85%; padding:6px 11px;
+  border-radius:12px 12px 3px 12px; background:var(--blue); color:#fff;
+  font-size:13.5px; line-height:1.4}
+.causerie .ligne{display:flex; gap:7px}
+.causerie input{flex:1; font:inherit; font-size:14.5px; padding:9px 12px;
+  border-radius:10px; background:var(--card); color:var(--ink);
+  border:1px solid var(--line)}
+.causerie .ligne button{font:inherit; font-size:14.5px; font-weight:600;
+  padding:9px 16px; border-radius:10px; cursor:pointer; background:var(--blue);
+  border:1px solid var(--blue); color:#fff}
+.raccourcis{display:flex; gap:6px; flex-wrap:wrap; margin-top:7px}
+.raccourcis button{font:inherit; font-size:13px; padding:5px 11px;
+  border-radius:100px; cursor:pointer; background:var(--sunk); color:var(--ink-2);
+  border:1px solid var(--line)}
+.note-t .brouillon{flex:1 1 100%; margin-top:11px}
+.brouillon{margin:10px 0 0; padding:12px; border-radius:13px;
+  background:var(--sunk); border:1px solid var(--line)}
+.brouillon textarea{width:100%; box-sizing:border-box; font:inherit; font-size:15px;
+  line-height:1.5; padding:11px 13px; border-radius:11px; resize:vertical;
+  background:var(--card); color:var(--ink); border:1px solid var(--line)}
+.brouillon .faire{margin-top:9px}
+.brouillon small{display:block; margin-top:7px; color:var(--ink-3); font-size:13px}
+/* Les boutons qui envoient vraiment, poses par envoyer.js : vert plein, pour
+   qu'on ne les confonde pas avec ceux qui preparent. */
+button.env-direct{font:inherit; font-size:14.5px; font-weight:650;
+  padding:8px 15px; border-radius:10px; cursor:pointer;
+  background:var(--green); border:1px solid var(--green); color:#fff}
+button.env-direct:hover{filter:brightness(1.08)}
+button.env-direct:disabled{opacity:.6; cursor:default}
+button.env-direct.fait{background:var(--sunk); color:var(--ink-3);
+  border-color:var(--line); font-weight:600}
+button.env-chg{font:inherit; font-size:13.5px; padding:7px 11px; border-radius:10px;
+  cursor:pointer; background:var(--sunk); color:var(--ink-2);
+  border:1px solid var(--line)}
+button.env-chg:hover{color:var(--ink); border-color:var(--blue)}
+.env-autre{display:inline-flex; gap:6px; align-items:center}
+.env-autre input{font:inherit; font-size:14.5px; padding:7px 10px; width:150px;
+  border-radius:10px; background:var(--card); color:var(--ink);
+  border:1px solid var(--line)}
+.env-autre input:focus{outline:none; border-color:var(--blue)}
+.env-autre button{font:inherit; font-size:14px; padding:7px 12px; border-radius:10px;
+  cursor:pointer; background:var(--blue); border:1px solid var(--blue); color:#fff}
+</style>
+<link rel="stylesheet" href="/nav.css">
+<script>
+  // Le theme choisi en bas du menu vaut pour tous les ecrans, pas seulement
+  // la plateforme. Pose avant tout rendu, sinon la page clignote.
+  try {
+    var t = localStorage.getItem('theme');
+    if (t === 'dark' || t === 'light') document.documentElement.dataset.theme = t;
+  } catch (e) {}
+</script>
+<link rel="stylesheet" href="/bitchat.css">
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <span class="marque">SnapActions</span>
+  </header>
+
+  <h1>Chercher autre chose</h1>
+  <p class="chapeau">Écris ce que tu cherches, comme tu le dirais. L’IA de ce Mac
+    comprend la demande, je fouille ta mémoire (clubs, contacts, WhatsApp,
+    échanges), la base et les agendas des offices de tourisme, et je prépare
+    les recherches Facebook et Google.</p>
+
+  <form class="barre" id="form" autocomplete="off">
+    <input type="search" id="q" enterkeyhint="search" autofocus
+           placeholder="ex. puppy painting à Nice"
+           aria-label="Ce que tu cherches">
+    <button type="submit" class="primary" id="go">Chercher</button>
+  </form>
+  <form class="barre prospect" id="formProspect" autocomplete="off">
+    <input type="search" id="ou" placeholder="Des clubs que tu n’as pas : tape une ville, ou cliquez-en une">
+    <select id="rayon" aria-label="Rayon">
+      <option value="10">10 km</option>
+      <option value="20" selected>20 km</option>
+      <option value="30">30 km</option>
+      <option value="45">45 km</option>
+    </select>
+    <button type="submit" class="petit" id="goP">Prospecter</button>
+    <button type="button" class="petit" id="goR"
+      title="Tous les clubs de Draguignan à Menton, rangés par distance de Cannes">Tout ratisser</button>
+  </form>
+  <div class="routines" id="villes" hidden></div>
+  <div class="routines" id="disciplines" hidden></div>
+  <div class="routines" id="routines" hidden></div>
+  <div id="resultat"></div>
+</div>
+<div class="toast" id="toast"></div>
+
+<script>
+"use strict";
+const $ = s => document.querySelector(s);
+
+async function api(path, method, body){
+  const r = await fetch(path, {
+    method: method || "GET",
+    headers: body ? {"Content-Type": "application/json"} : {},
+    body: body ? JSON.stringify(body) : undefined,
+  });
+  const d = await r.json().catch(() => null);
+  if (!r.ok) throw new Error((d && d.error) || ("erreur " + r.status));
+  return d;
+}
+
+let tt;
+function toast(msg){
+  const t = $("#toast"); t.textContent = msg; t.classList.add("on");
+  clearTimeout(tt); tt = setTimeout(() => t.classList.remove("on"), 2600);
+}
+
+function neud(tag, cls, txt){
+  const n = document.createElement(tag);
+  if (cls) n.className = cls;
+  if (txt != null) n.textContent = txt;
+  return n;
+}
+
+function jour(iso){
+  if (!iso) return "";
+  const d = new Date(iso + "T12:00:00");
+  if (isNaN(d)) return iso;
+  return d.toLocaleDateString("fr-FR", {weekday:"short", day:"numeric", month:"short"});
+}
+
+/* Les liens partent dans Chrome, ou vivent les sessions Facebook : c'est le
+   serveur qui ouvre. S'il echoue, on retombe sur window.open. */
+function ouvrirLien(url){
+  if (!url) return;
+  api("/api/ouvrir", "POST", {url: url})
+    .catch(() => window.open(url, "_blank", "noopener"));
+}
+
+/* ---------- les cartes de la memoire ---------- */
+
+/* « +33622895700 » se lit « 06 22 89 57 00 ». Un numero etranger reste tel quel. */
+function telLisible(tel){
+  const n = String(tel || "").replace(/[^\d+]/g, "");
+  const fr = n.replace(/^\+33/, "0").replace(/^0033/, "0");
+  if (/^0\d{9}$/.test(fr)) return fr.replace(/(\d{2})(?=\d)/g, "$1 ");
+  const mc = n.replace(/^00377/, "+377").match(/^\+377(\d{8,9})$/);
+  if (mc) return "+377 " + mc[1].replace(/(\d{2})(?=\d)/g, "$1 ");
+  return String(tel || "").trim();
+}
+/* Memes regles que le Reperage : wa.me veut les chiffres seuls, 0 -> 33 ; un
+   06 ou 07 est un mobile, un 01 a 05 ou 09 un fixe, sans WhatsApp. */
+function numeroWa(tel){
+  const brut = String(tel || "").replace(/\D/g, "").replace(/^00/, "");
+  const n = /^377/.test(brut) ? brut : brut.replace(/^0/, "33");
+  return n.length >= 10 ? n : "";
+}
+/* Le plan de numerotation dit, avant le clic, si WhatsApp a une chance.
+   En France : 06 et 07 sont des mobiles, 01 a 05 et 09 des fixes.
+   A Monaco : huit chiffres apres +377, les fixes commencent par 9, les
+   mobiles par 6 (et 4). Ce n'est pas un detail ici — sur les quatre-vingt-onze
+   clubs monegasques de la base, QUARANTE-CINQ numeros commencent par +377 9 :
+   ce sont des lignes fixes, WhatsApp n'y arrivera jamais. Seuls quatre sont
+   des mobiles. On le dit donc, au lieu de laisser ouvrir une conversation
+   qui n'existera pas. Pour les autres pays on n'affirme rien. */
+function estFixe(tel){
+  const brut = String(tel || "").replace(/\D/g, "").replace(/^00/, "");
+  if (/^377/.test(brut)) return /^3779/.test(brut) && brut.length === 11;
+  const n = brut.replace(/^0/, "33");
+  return /^33[1-59]/.test(n) && n.length === 11;
+}
+/* L'ancien nom, garde pour ne rien casser ailleurs. */
+const estFixeFr = estFixe;
+
+async function copier(texte){
+  try { await navigator.clipboard.writeText(texte); toast("Copié : " + texte); return; }
+  catch (e) { /* le serveur prend le relais */ }
+  try { await api("/api/clipboard", "POST", {text: texte}); toast("Copié : " + texte); }
+  catch (e) { toast("Copie impossible"); }
+}
+
+/* Le mailto: part par le serveur vers le logiciel de mail du Mac, comme au
+   Reperage ; sans serveur, le navigateur le remet au systeme. */
+function ouvrirMail(adresse, nom){
+  const lien = "mailto:" + String(adresse).trim()
+    + "?subject=" + encodeURIComponent("SnapActions — " + (nom || ""));
+  api("/api/ouvrir", "POST", {url: lien}).catch(() => { location.href = lien; });
+}
+
+function bouton(cls, texte, titre, action){
+  const b = neud("button", cls, texte);
+  b.type = "button";
+  if (titre) b.title = titre;
+  b.addEventListener("click", action);
+  return b;
+}
+
+function depuis(quand){
+  if (!quand) return null;
+  const d = new Date(String(quand).slice(0, 10) + "T12:00:00");
+  return isNaN(d) ? null : Math.round((Date.now() - d) / 864e5);
+}
+
+/* Une ligne « qui joindre » : le nom, le numero en gros, et les gestes. */
+function ligneQui(nom, role, tel, mail, club){
+  const l = neud("div", "f-qui");
+  const n = neud("span", "nom", nom || "Club");
+  if (role) n.appendChild(neud("small", null, role));
+  l.appendChild(n);
+  if (tel) l.appendChild(neud("span", "f-tel" + (estFixeFr(tel) ? " fixe" : ""), telLisible(tel)));
+  if (mail && !tel) l.appendChild(neud("span", "f-mail", mail));
+  const bs = neud("span", "boutons");
+  if (tel && numeroWa(tel) && !estFixeFr(tel))
+    bs.appendChild(bouton("mini vert", "WhatsApp", "Ouvre la conversation dans WhatsApp Web",
+      () => ouvrirLien("https://wa.me/" + numeroWa(tel))));
+  if (tel) bs.appendChild(bouton("mini", "Copier", "Copie le numéro", () => copier(telLisible(tel))));
+  if (mail) bs.appendChild(bouton("mini", "Mail", mail, () => ouvrirMail(mail, club)));
+  l.appendChild(bs);
+  return l;
+}
+
+function carteMemoire(m, premiere){
+  const c = neud("article", "carte" + (premiere ? " premiere" : ""));
+  c.appendChild(neud("div", "f-source", "Trouvé dans · " + (m.trouve_dans || []).join(" · ")));
+  c.appendChild(neud("div", "f-club", m.nom));
+
+  const q = neud("div", "f-quand");
+  if (m.ne_pas_contacter) q.appendChild(neud("span", "f-statut stop", "Ne pas contacter"));
+  else if (m.statut) q.appendChild(neud("span", "f-statut" +
+    (m.statut_cle && m.statut_cle !== "prospect" ? " chaud" : ""), m.statut));
+  const ou = [m.ville, m.sport].filter(Boolean).join(" · ");
+  if (ou) q.appendChild(neud("span", "f-ou", ou));
+  if (q.childNodes.length) c.appendChild(q);
+
+  /* Ou on en est : le dernier message WhatsApp dit tout de suite s'il faut
+     relancer (c'est toi qui as ecrit, sans reponse) ou repondre. */
+  const wa = (m.whatsapp || []).find(w => w.dernier);
+  if (wa) {
+    c.appendChild(neud("div", "f-lab", "Où on en est"));
+    const b = neud("div", "f-wa");
+    const j = depuis(wa.dernier.quand || wa.dernier_le);
+    const quand = jour(String(wa.dernier.quand || wa.dernier_le).slice(0, 10));
+    b.appendChild(neud("div", "etat " + (wa.dernier.de_moi ? "attente" : "repondu"),
+      wa.dernier.de_moi
+        ? "Tu as écrit le " + quand + (j > 2 ? " · sans réponse depuis " + j + " jours" : "")
+        : (wa.nom || "Il") + " a écrit le " + quand + " · à toi de répondre"));
+    b.appendChild(neud("p", null, wa.dernier.texte));
+    c.appendChild(b);
+  } else if (m.dernier_echange) {
+    c.appendChild(neud("div", "f-lab", "Où on en est"));
+    const e = m.dernier_echange;
+    c.appendChild(neud("div", "f-wa", "Dernier échange le " + jour(String(e.quand).slice(0, 10))
+      + " · " + [e.type, e.sujet].filter(Boolean).join(" · ")));
+  }
+
+  /* Qui joindre : les personnes d'abord (c'est un portable, en general), puis
+     le numero et le mail du club s'ils sont differents. */
+  const qui = neud("div");
+  const vus = new Set();
+  const cle = t => String(t || "").replace(/\D/g, "").slice(-9);
+  (m.personnes || []).forEach(p => {
+    if (!p.telephone && !p.email) return;
+    qui.appendChild(ligneQui(p.nom, p.role, p.telephone, p.email, m.nom));
+    vus.add(cle(p.telephone)); vus.add(p.email);
+  });
+  (m.whatsapp || []).forEach(w => {
+    if (w.telephone && !vus.has(cle(w.telephone))) {
+      qui.appendChild(ligneQui(w.nom, w.groupe ? "groupe WhatsApp" : "WhatsApp", w.telephone, null, m.nom));
+      vus.add(cle(w.telephone));
+    }
+  });
+  const telClub = m.telephone && !vus.has(cle(m.telephone)) ? m.telephone : null;
+  const mailClub = m.email && !vus.has(m.email) ? m.email : null;
+  if (telClub || mailClub) qui.appendChild(ligneQui(m.club_id ? "Club" : m.nom, null,
+    telClub, mailClub, m.nom));
+  if (qui.childNodes.length && !m.ne_pas_contacter) {
+    c.appendChild(neud("div", "f-lab", "Joindre"));
+    c.appendChild(qui);
+  } else if (!qui.childNodes.length) {
+    c.appendChild(neud("p", "f-note", "Aucun numéro ni mail en fiche."));
+  }
+
+  if (m.note || m.extrait) c.appendChild(neud("p", "f-note", m.note || m.extrait));
+
+  const barre = neud("div", "carte-barre");
+  if (m.club_id) barre.appendChild(bouton("voir", "Ouvrir la fiche", "Ouvre la fiche dans le CRM",
+    () => { location.href = "/index.html#/clubs/club/" + m.club_id; }));
+  if (m.site) barre.appendChild(bouton("source", "Site ↗", m.site, () => ouvrirLien(m.site)));
+  if (barre.childNodes.length) c.appendChild(barre);
+  return c;
+}
+
+const form = $("#form"), champ = $("#q"), go = $("#go"), res = $("#resultat");
+
+/* La recherche se retrouve dans l'adresse : un retour arriere, un favori ou
+   un lien depuis une autre page la relancent. */
+/* Un numero ou un mail colle dans la barre n'est pas une question : on ne
+   derange pas le modele pour ca. On va droit en base, et c'est instantane. */
+const RX_MAIL_Q = /[\w.+-]+@[\w-]+\.[\w.-]+/;
+function estIdentifiant(q){
+  if (RX_MAIL_Q.test(q)) return "mail";
+  const chiffres = q.replace(/\D/g, "");
+  const serre = q.replace(/[\s+().-]/g, "");
+  return (chiffres.length >= 6 && chiffres.length >= serre.length - 2) ? "tel" : null;
+}
+
+async function chercherIdentifiant(q, genre){
+  go.disabled = true; go.textContent = "Je cherche…";
+  res.innerHTML = "";
+  try {
+    const d = await api("/api/chercher?q=" + encodeURIComponent(q));
+    res.innerHTML = "";
+    const quoi = genre === "tel" ? "ce numéro" : "cette adresse";
+    if (!d.total) {
+      res.appendChild(neud("p", "dit",
+        "Rien sur " + quoi + " dans votre base."));
+    } else {
+      res.appendChild(neud("p", "dit",
+        d.total + (d.total > 1 ? " fiches portent " : " fiche porte ") + quoi + " :"));
+      (d.groupes || []).forEach(g => {
+        const bloc = neud("div", "groupe");
+        bloc.appendChild(neud("h3", null, g.nom + " · " + g.n));
+        g.items.forEach(i => {
+          const l = neud("div", "ligne-res");
+          l.appendChild(neud("b", null, i.titre || "Sans nom"));
+          if (i.sous) l.appendChild(neud("small", null, i.sous));
+          if (i.tel) l.appendChild(neud("small", null, i.tel));
+          bloc.appendChild(l);
+        });
+        res.appendChild(bloc);
+      });
+    }
+  } catch (err) {
+    res.innerHTML = "";
+    res.appendChild(neud("p", "dit", "Recherche impossible : " + err.message));
+  }
+  go.disabled = false; go.textContent = "Chercher";
+}
+
+async function lancer(q){
+  const genre = estIdentifiant(q);
+  if (genre) return chercherIdentifiant(q, genre);
+  go.disabled = true; go.textContent = "Je réfléchis…";
+  res.innerHTML = "";
+  res.appendChild(neud("p", "dit",
+    "Je lis ta demande, je fouille ta mémoire, puis je réponds…"));
+  try {
+    /* On demande une REPONSE, pas une liste. Le modele tourne sur ce Mac et
+       ne voit que les fiches trouvees ici : il ne sait rien d'autre, et les
+       fiches qui ont servi sont affichees dessous pour qu'on puisse toujours
+       aller verifier. Une reponse qui ne se verifie pas ne vaut rien. */
+    const d = await api("/api/demander?q=" + encodeURIComponent(q));
+    d.memoire = d.fiches || [];
+    d.trouves = d.dates || [];
+    d.total = d.trouves.length;
+    dessiner(d);
+  } catch (err) {
+    res.innerHTML = "";
+    res.appendChild(neud("p", "dit", "Recherche impossible : " + err.message));
+  }
+  go.disabled = false; go.textContent = "Chercher";
+}
+
+/* Le bloc de reponse, en tete : c'est ce qu'on est venu chercher. */
+function blocReponse(d){
+  const b = neud("div", "reponse");
+  if (d.reponse) {
+    b.appendChild(neud("p", "texte", d.reponse));
+    if (d.cites) {
+      b.appendChild(neud("p", "appui",
+        "D’après " + d.cites + " fiche" + (d.cites > 1 ? "s" : "")
+        + " de ta base, affichée" + (d.cites > 1 ? "s" : "") + " ci-dessous."));
+    }
+  } else if (d.sans_ia) {
+    b.appendChild(neud("p", "texte",
+      "Pas de synthèse cette fois — voici ce que j’ai trouvé."));
+  }
+  const g = neud("div", "gestes-rep");
+  /* Reposer la question tous les soirs : « les clubs de danse a Nice » n'est
+     pas une recherche a faire une fois, c'est une veille. */
+  const sur = neud("button", "petit", "⟳ Surveiller cette question");
+  sur.type = "button";
+  sur.title = "Je la repose chaque nuit et je ne remonte que ce qui est nouveau";
+  sur.addEventListener("click", async () => {
+    sur.disabled = true;
+    try {
+      const r = await api("/api/routines", "POST", {question: d.question || d.q});
+      toast(r.deja ? "Déjà surveillée" : "Surveillée — je la repose chaque nuit");
+      chargerRoutines();
+    } catch (e) { sur.disabled = false; toast("Impossible : " + e.message); }
+  });
+  g.appendChild(sur);
+  b.appendChild(g);
+  return b;
+}
+
+/* Les questions deja surveillees, sous la barre. */
+async function chargerRoutines(){
+  const boite = document.getElementById("routines");
+  if (!boite) return;
+  try {
+    const d = await api("/api/routines");
+    const items = d.items || [];
+    boite.innerHTML = "";
+    if (!items.length) { boite.hidden = true; return; }
+    boite.hidden = false;
+    boite.appendChild(neud("span", "dit", "Surveillées :"));
+    items.forEach(r => {
+      const t = neud("span", "routine");
+      const go2 = neud("button", null, r.question
+        + ((r.dernier_n || 0) > 0 ? " · " + r.dernier_n + " nouveau(x)" : ""));
+      go2.type = "button";
+      go2.addEventListener("click", () => {
+        champ.value = r.question; lancer(r.question);
+      });
+      t.appendChild(go2);
+      const x = neud("button", "x", "✕");
+      x.type = "button"; x.title = "Ne plus surveiller";
+      x.addEventListener("click", async () => {
+        await api("/api/routines/" + r.id, "DELETE");
+        chargerRoutines();
+      });
+      t.appendChild(x);
+      boite.appendChild(t);
+    });
+  } catch (e) { boite.hidden = true; }
+}
+
+form.addEventListener("submit", e => {
+  e.preventDefault();
+  const q = champ.value.trim();
+  if (!q) { res.innerHTML = ""; return; }
+  history.replaceState(null, "", "?q=" + encodeURIComponent(q));
+  lancer(q);
+});
+
+function dessiner(d){
+  res.innerHTML = "";
+  res.appendChild(blocReponse(d));
+  const c = d.comprise || {};
+  const lu = neud("p", "dit");
+  lu.append(c.ia ? "Compris : " : "Sans IA : ");
+  lu.appendChild(neud("b", null, c.sujet || d.q));
+  if (c.ville) lu.append(" · à " + c.ville);
+  if (c.dept) lu.append(" · dans le " + c.dept);
+  if ((c.mots || []).length) lu.append(" · mots cherchés : " + c.mots.join(", "));
+  res.appendChild(lu);
+  (d.soucis || []).forEach(s => res.appendChild(neud("p", "dit", s)));
+
+  const liens = neud("div", "liens");
+  (d.liens || []).forEach(l => {
+    const b = neud("button", "petit", l.libelle + " ↗");
+    b.type = "button";
+    b.title = "Ouvre la recherche dans Chrome";
+    b.addEventListener("click", () => ouvrirLien(l.url));
+    liens.appendChild(b);
+  });
+  res.appendChild(liens);
+
+  /* La memoire du CRM : les clubs, contacts, conversations WhatsApp et
+     echanges deja vecus. « Le club de natation qu'on a rencontre » est la,
+     pas dans les agendas. */
+  const memoire = d.memoire || [];
+  if (memoire.length) {
+    res.appendChild(neud("p", "dit", "Dans ta mémoire (clubs, contacts, WhatsApp, échanges) :"));
+    const grille = neud("div", "cartes");
+    memoire.forEach((m, i) => grille.appendChild(carteMemoire(m, i === 0 && m.score >= 6)));
+    res.appendChild(grille);
+  }
+
+  const trouves = d.trouves || [];
+  res.appendChild(neud("p", "dit", trouves.length
+    ? (d.total > trouves.length ? d.total + " pistes, les " + trouves.length + " meilleures :"
+                                : trouves.length + " piste" + (trouves.length > 1 ? "s" : "") + " dans les agendas :")
+    : "Aucun événement à venir dans la base ni dans DATAtourisme. Ouvre Facebook ou Google "
+      + "ci-dessus : les petits événements n’existent souvent que là."));
+
+  trouves.forEach(t => {
+    const l = neud("div", "ligne");
+    const txt = neud("div", "txt");
+    txt.appendChild(neud("b", null, t.name));
+    const sous = neud("small");
+    if (t.ici) sous.appendChild(neud("span", "ici", "● "));
+    sous.append(jour(t.start_date)
+      + (t.end_date && t.end_date !== t.start_date ? " → " + jour(t.end_date) : "")
+      + " · " + (t.city || "lieu inconnu")
+      + (t.postal_code ? " (" + t.postal_code.slice(0, 2) + ")" : "")
+      + " · " + (t.source || ""));
+    txt.appendChild(sous);
+    if (t.description) txt.appendChild(neud("p", null, t.description));
+
+    const act = neud("div", "act");
+    if (t.url) {
+      const o = neud("button", "petit", "Ouvrir");
+      o.type = "button";
+      o.addEventListener("click", () => ouvrirLien(t.url));
+      act.appendChild(o);
+    }
+    if (t.deja) {
+      act.appendChild(neud("span", "dit", "Déjà en base"));
+    } else {
+      /* Rien n'entre en base sans ce clic. La fiche arrive dans « Trouvés sur
+         le net » du Reperage ; le perimetre de 120 min s'applique comme partout. */
+      const a = neud("button", "petit", "Ajouter");
+      a.type = "button";
+      a.addEventListener("click", async () => {
+        a.disabled = true;
+        try {
+          const r = await api("/api/tournaments", "POST", {
+            name: t.name, start_date: t.start_date, end_date: t.end_date,
+            city: t.city, postal_code: t.postal_code, venue: t.venue,
+            url: t.url, description: t.description, source: t.source,
+          });
+          if (r.created) {
+            a.textContent = "Ajouté";
+            toast("Ajouté dans Repérage, « Trouvés sur le net »");
+          } else {
+            a.textContent = r.updated ? "Déjà en base" : "Hors périmètre";
+            toast(r.updated ? "Il était déjà en base" : "Trop loin de Cannes : refusé");
+          }
+        } catch (err) { a.disabled = false; toast("Échec : " + err.message); }
+      });
+      act.appendChild(a);
+    }
+    l.append(txt, act);
+    res.appendChild(l);
+  });
+}
+
+/* La prospection. Le repertoire officiel des associations rend des clubs
+   reels, avec leur nom legal et leur adresse ; aucun telephone, parce qu'il
+   n'en publie pas et qu'on n'en invente pas. Les coordonnees se cherchent
+   ensuite, club par club, sur ses propres pages. */
+const formP = document.getElementById("formProspect");
+const champOu = document.getElementById("ou");
+const goP = document.getElementById("goP");
+
+formP.addEventListener("submit", async e => {
+  e.preventDefault();
+  const ou = champOu.value.trim();
+  if (!ou) return;
+  goP.disabled = true; goP.textContent = "Je cherche…";
+  res.innerHTML = "";
+  res.appendChild(neud("p", "dit", "Je lis le répertoire officiel des associations…"));
+  try {
+    dessinerNeufs(await api("/api/prospecter?ou=" + encodeURIComponent(ou)
+      + "&rayon=" + document.getElementById("rayon").value));
+  } catch (err) {
+    res.innerHTML = "";
+    res.appendChild(neud("p", "dit", "Prospection impossible : " + err.message));
+  }
+  goP.disabled = false; goP.textContent = "Prospecter";
+});
+
+/* De la fiche neuve au message pret. Trois temps, et aucun clic entre eux :
+   on cherche ses pages, on y lit ses coordonnees, on affiche le mot.
+   Rien ne part : Julien relit, puis c'est lui qui appuie. */
+async function demarcher(ligne, clubId, nom, angle){
+  if (!clubId) return;
+  let z = ligne.querySelector(".demarche");
+  const deja = !!z;                     /* on a deja cherche le contact */
+  if (z) { z.remove(); }
+  z = neud("div", "demarche");
+  z.appendChild(neud("p", "dit", deja ? "J\u2019écris le message…"
+                                      : "Je cherche comment les joindre…"));
+  ligne.appendChild(z);
+
+  if (!deja) {
+    try { await api("/api/clubs/" + clubId + "/enrichir", "POST", {}); }
+    catch (e) { /* pas de pages trouvees : le message reste possible */ }
+  }
+
+  let d = {};
+  try {
+    d = await api("/api/clubs/" + clubId + "/message"
+      + (angle ? "?angle=" + encodeURIComponent(angle) : ""));
+  }
+  catch (e) {
+    z.innerHTML = "";
+    z.appendChild(neud("p", "dit", "Message indisponible : " + e.message));
+    return;
+  }
+
+  z.innerHTML = "";
+  if (!d.texte) {
+    z.appendChild(neud("p", "dit", d.motif || "Pas de message pour ce club."));
+    return;
+  }
+  if (!d.joignable) {
+    z.appendChild(neud("p", "dit",
+      "Le message est prêt, mais " + nom + " n’a encore ni numéro ni mail. "
+      + "Le veilleur repassera, ou cherchez sa page avec le bouton Google."));
+  }
+
+  /* Un meme club ne se demarche pas pareil selon ce qu'on lui propose :
+     une presentation, le studio au gymnase, ou leurs dates de saison.
+     Un clic change l'accroche, le reste de la carte ne bouge pas. */
+  const onglets = neud("div", "angles");
+  (d.angles || []).forEach(a => {
+    const t = neud("button", "routine" + (a.cle === d.angle ? " on" : ""), a.nom);
+    t.type = "button";
+    t.addEventListener("click", () => demarcher(ligne, clubId, nom, a.cle));
+    onglets.appendChild(t);
+  });
+  z.appendChild(onglets);
+
+  if (window.Message) {
+    window.Message.panneau(z, {texte: d.texte, objet: d.objet,
+      tel: d.tel, email: d.mail, club_id: clubId, contexte: nom});
+  } else {
+    const t = document.createElement("textarea");
+    t.rows = 9; t.value = d.texte;
+    t.style.cssText = "width:100%;box-sizing:border-box";
+    z.appendChild(t);
+  }
+}
+
+/* Les villes ou Julien travaille, en un clic. Elles viennent du serveur :
+   la liste vit dans prospection.COULOIR et nulle part ailleurs, pour qu'on
+   n'ait pas a la tenir a jour a deux endroits. */
+async function poserVilles(){
+  const b = document.getElementById("villes");
+  try {
+    const d = await api("/api/prospection/villes");
+    const villes = d.villes || [];
+    if (!villes.length) return;
+    b.hidden = false;
+    b.appendChild(neud("span", "dit", "Autour de :"));
+    villes.forEach(v => {
+      const t = neud("button", "routine", v);
+      t.type = "button";
+      t.addEventListener("click", () => {
+        champOu.value = v;
+        formP.dispatchEvent(new Event("submit", {cancelable: true}));
+      });
+      b.appendChild(t);
+    });
+  } catch (e) { /* sans raccourcis, le champ libre marche toujours */ }
+}
+poserVilles();
+
+function dessinerNeufs(d){
+  res.innerHTML = "";
+  const liste = d.candidats || [];
+  const b = neud("div", "neuf");
+  /* Monte en noeuds plutot qu'en innerHTML : un nom de commune venu d'une
+     API n'a pas a etre interprete comme du HTML. */
+  const t = neud("div", "tete");
+  t.appendChild(neud("b", null, String(liste.length)));
+  t.append(" club" + (liste.length > 1 ? "s" : "") + " autour de ");
+  t.appendChild(neud("b", null, d.lieu || ""));
+  t.append(d.ratisse
+    ? " (" + d.communes + " villes balayées, " + d.rayon_km + " km autour de "
+      + "chacune) que tu n’as pas en fiche, du plus proche de Cannes au plus loin."
+      + (d.total && d.total > liste.length ? " Les " + liste.length
+         + " premiers sur " + d.total + "." : "")
+      + " Source : répertoire officiel des associations."
+    : " (" + d.rayon_km + " km, " + d.communes + " communes) que tu n’as pas "
+      + "en fiche" + (d.deja_en_fiche ? " — " + d.deja_en_fiche + " déjà connu(s), "
+      + "écarté(s)" : "") + ". Source : répertoire officiel des associations.");
+  b.appendChild(t);
+  if (!liste.length) {
+    b.appendChild(neud("div", "candidat", "Rien de nouveau ici — tu les as déjà tous."));
+  }
+  liste.forEach(c => {
+    const l = neud("div", "candidat");
+    l.appendChild(neud("div", "km", (c.km_du_point != null ? c.km_du_point + " km" : "")));
+    const qui = neud("div", "qui");
+    qui.appendChild(neud("b", null, c.nom));
+    qui.appendChild(neud("small", null,
+      [c.ville, c.adresse, c.cree_le ? "créée en " + String(c.cree_le).slice(0, 4) : ""]
+        .filter(Boolean).join(" · ").slice(0, 110)));
+    l.appendChild(qui);
+    const f = neud("div", "faire");
+
+    /* Mettre en fiche puis demarcher. Le repertoire officiel ne publie
+       aucun numero : une fiche neuve est muette. On enchaine donc sans
+       rien demander — on lit ses pages, on y prend ses coordonnees, et le
+       message s'affiche. */
+    let clubId = null;
+    async function enFiche(bouton){
+      if (clubId) return clubId;
+      const r = await api("/api/prospecter/retenir", "POST", {
+        nom: c.nom, ville: c.ville, code_postal: c.code_postal,
+        adresse: c.adresse, fiche: c.fiche,
+        note: "Trouvé au répertoire officiel des associations"
+              + (c.siren ? " (SIREN " + c.siren + ")" : "") + "."});
+      clubId = r.club_id;
+      add.textContent = "✓ En fiche";
+      add.disabled = true;
+      return clubId;
+    }
+
+    const add = neud("button", "petit", "Mettre en fiche");
+    add.type = "button";
+    add.addEventListener("click", async () => {
+      add.disabled = true;
+      try {
+        await enFiche(add);
+        toast("Ajouté à tes clubs");
+        demarcher(l, clubId, c.nom);
+      } catch (err) { add.disabled = false; toast("Échec : " + err.message); }
+    });
+    f.appendChild(add);
+
+    /* Les deux accroches, directement sur la carte : c'est ce que Julien
+       veut leur proposer. Un clic fait la fiche, cherche le contact et
+       ouvre le message — il n'a plus qu'a relire. */
+    [["dates", "✉ Leurs dates"], ["studio", "✉ Studio"]].forEach(([angle, mot]) => {
+      const b = neud("button", "petit", mot);
+      b.type = "button";
+      b.title = angle === "studio"
+        ? "Proposer le studio mobile au club"
+        : "Leur demander leurs dates de saison pour les couvrir";
+      b.addEventListener("click", async () => {
+        const avant = b.textContent;
+        b.disabled = true; b.textContent = "…";
+        try {
+          await enFiche(b);
+          await demarcher(l, clubId, c.nom, angle);
+        } catch (err) { toast("Échec : " + err.message); }
+        b.disabled = false; b.textContent = avant;
+      });
+      f.appendChild(b);
+    });
+
+    const web = neud("button", "petit", "Google ↗");
+    web.type = "button";
+    web.title = "Ouvre la recherche pour trouver son téléphone";
+    web.addEventListener("click", () => ouvrirLien(
+      "https://www.google.com/search?q="
+      + encodeURIComponent(c.nom + " " + (c.ville || "") + " contact")));
+    f.appendChild(web);
+
+    if (c.fiche) {
+      const an = neud("button", "petit", "Fiche officielle ↗");
+      an.type = "button";
+      an.addEventListener("click", () => ouvrirLien(c.fiche));
+      f.appendChild(an);
+    }
+    l.appendChild(f);
+    b.appendChild(l);
+  });
+  res.appendChild(b);
+  (d.soucis || []).forEach(x => res.appendChild(neud("p", "dit", x)));
+}
+
+/* Le ratissage : quand la semaine est vide, une ville a la fois ne suffit
+   pas. On balaye tout le couloir et on range par distance de Cannes — c'est
+   elle qui decide si on y va. */
+const goR = document.getElementById("goR");
+let _ratisse = null;
+
+goR.addEventListener("click", async () => {
+  goR.disabled = true; goR.textContent = "Je ratisse…";
+  res.innerHTML = "";
+  res.appendChild(neud("p", "dit",
+    "Je balaye Draguignan → Menton au répertoire officiel. Une vingtaine de secondes…"));
+  try {
+    _ratisse = await api("/api/ratisser?rayon=" + document.getElementById("rayon").value);
+    dessinerDisciplines(_ratisse);
+    dessinerNeufs(Object.assign({}, _ratisse, {lieu: "Draguignan → Menton",
+      communes: _ratisse.villes.length, deja_en_fiche: 0, ratisse: true}));
+  } catch (err) {
+    res.innerHTML = "";
+    res.appendChild(neud("p", "dit", "Ratissage impossible : " + err.message));
+  }
+  goR.disabled = false; goR.textContent = "Tout ratisser";
+});
+
+/* Les disciplines, en pastilles : « tout » ne se travaille pas, « les
+   vingt-neuf clubs de gym » si. */
+function dessinerDisciplines(d){
+  const b = document.getElementById("disciplines");
+  b.innerHTML = ""; b.hidden = false;
+  const comptes = {};
+  (d.candidats || []).forEach(c => {
+    const k = c.discipline || "(à classer)";
+    comptes[k] = (comptes[k] || 0) + 1;
+  });
+  const faire = (nom, n, filtre) => {
+    const t = neud("span", "routine");
+    const go2 = neud("button", null, nom + " · " + n);
+    go2.type = "button";
+    go2.addEventListener("click", () => {
+      const liste = filtre === null ? _ratisse.candidats
+        : (_ratisse.candidats || []).filter(c => (c.discipline || "(à classer)") === filtre);
+      dessinerNeufs({candidats: liste, lieu: filtre || "Draguignan → Menton",
+        rayon_km: _ratisse.rayon_km, communes: _ratisse.villes.length,
+        deja_en_fiche: 0, ratisse: true, total: liste.length});
+    });
+    t.appendChild(go2);
+    b.appendChild(t);
+  };
+  faire("Tout", (d.candidats || []).length, null);
+  Object.keys(comptes).sort((x, y) => comptes[y] - comptes[x])
+    .forEach(k => faire(k, comptes[k], k));
+}
+
+chargerRoutines();
+const depart = new URLSearchParams(location.search).get("q");
+if (depart) { champ.value = depart; lancer(depart); }
+</script>
+<script src="/envoyer.js"></script>
+<script src="/message.js"></script>
+<script src="/nav.js"></script>
+<script src="/bitchat.js"></script>
+</body>
+</html>

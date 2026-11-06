@@ -1,0 +1,33 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(curl -s http://127.0.0.1:8765/*)",
+      "Bash(curl -s -i http://127.0.0.1:8765/*)",
+      "Bash(curl -s -m 5 http://127.0.0.1:8765/*)",
+      "Bash(curl -s -m 10 http://127.0.0.1:8765/*)",
+      "Bash(curl -s -X GET http://127.0.0.1:8765/*)",
+      "Bash(curl -s -X POST http://127.0.0.1:8765/*)",
+      "Bash(curl -s -X PATCH http://127.0.0.1:8765/*)",
+      "Bash(curl -s -X DELETE http://127.0.0.1:8765/*)",
+      "Bash(curl -s -X OPTIONS http://127.0.0.1:8765/*)",
+
+      "Bash(sqlite3 data/crm.db *)",
+      "Bash(sqlite3 -header data/crm.db *)",
+      "Bash(sqlite3 -column data/crm.db *)",
+      "Bash(sqlite3 -header -column data/crm.db *)",
+
+      "mcp__claude-in-chrome__list_connected_browsers",
+      "mcp__claude-in-chrome__tabs_context_mcp",
+      "mcp__claude-in-chrome__tabs_create_mcp",
+      "mcp__claude-in-chrome__tabs_close_mcp",
+      "mcp__claude-in-chrome__browser_batch",
+      "mcp__claude-in-chrome__computer",
+      "mcp__claude-in-chrome__navigate",
+      "mcp__claude-in-chrome__find",
+      "mcp__claude-in-chrome__read_page",
+      "mcp__claude-in-chrome__get_page_text",
+      "mcp__claude-in-chrome__javascript_tool",
+      "mcp__claude-in-chrome__read_console_messages"
+    ]
+  }
+}

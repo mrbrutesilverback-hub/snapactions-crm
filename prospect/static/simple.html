@@ -1,0 +1,3536 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>SnapActions</title>
+<style>
+:root{
+  /* Les gris etaient tres legerement chauds ; ils passent au gris bleute,
+     comme sur la plateforme, et les couleurs gagnent en franchise. */
+  --ground:#F2F5F8; --card:#FFFFFF; --sunk:#EDF1F6;
+  --ink:#0F1621; --ink-2:#2C3845; --ink-3:#5D6975;
+  --line:#DCE3EB; --line-soft:#E7ECF2;
+  --blue:#0A6CF0; --blue-ink:#FFFFFF; --blue-soft:#E8F1FE;
+  --green:#0C9A6C; --green-soft:#E0F5EE;
+  --amber:#AD6200; --amber-soft:#FBF1E0;
+  /* Reserve au conflit d'agenda : l'ambre servait deja a la date
+     « bientot », aux tiroirs et a la distance, juste a cote. */
+  --violet:#6D28D9; --violet-soft:#F1ECFE;
+  --red:#DC2626; --red-soft:#FDECEC;
+  --lift:0 1px 2px rgba(15,22,33,.05), 0 12px 32px -20px rgba(15,22,33,.26);
+}
+@media (prefers-color-scheme:dark){
+  :root{
+    --ground:#0D1117; --card:#151B23; --sunk:#1E2630;
+    --ink:#E6EDF3; --ink-2:#C3CEDA; --ink-3:#8B97A4;
+    --line:#2A333F; --line-soft:#232C36;
+    --blue:#4C9AFF; --blue-ink:#FFFFFF; --blue-soft:#102642;
+    --green:#3FD68C; --green-soft:#0E2E22;
+    --amber:#E8B44B; --amber-soft:#2F2611;
+    --violet:#C4A7FF; --violet-soft:#241A3D;
+    --red:#FF7B72; --red-soft:#331F1D;
+    --lift:0 1px 2px rgba(0,0,0,.5), 0 14px 36px -20px rgba(0,0,0,.9);
+  }
+}
+*{box-sizing:border-box}
+html,body{height:100%}
+body{
+  margin:0; background:var(--ground); color:var(--ink);
+  font-family:-apple-system,BlinkMacSystemFont,"SF Pro Text","Helvetica Neue",Arial,sans-serif;
+  font-size:17px; line-height:1.47;
+  -webkit-font-smoothing:antialiased; text-rendering:optimizeLegibility;
+}
+.wrap{max-width:640px; margin:0 auto; padding:0 24px 80px}
+
+header{padding:14px 0 0; display:flex; align-items:center; gap:14px}
+.zone{margin-top:14px}
+.zone-head{display:flex; align-items:center; gap:14px; margin-top:46px;
+  border-top:1px solid var(--line-soft); padding-top:24px}
+.zone-head h2{font-size:24px; line-height:1.2; letter-spacing:-.015em; font-weight:600; margin:0}
+.zone-head .count{margin-left:0}
+.zone-head .scouter{margin-left:auto}
+.zone-mot{margin:12px 0 0; font-size:13.5px; color:var(--ink-3)}
+.zone-mot.portee{margin-top:10px; max-width:52em}
+
+/* Le compte rendu d'analyse : ce que l'affiche a donné, et ce qui manque. */
+.resultat{margin-top:16px; display:grid;
+  grid-template-columns:repeat(auto-fill, minmax(320px, 1fr)); gap:12px}
+.resultat[hidden]{display:none}
+.lu{background:var(--card); border:1.5px solid var(--blue); border-radius:16px;
+  padding:15px 16px 14px; box-shadow:0 0 0 3px var(--blue-soft)}
+.lu-tete{font-size:11.5px; letter-spacing:.05em; text-transform:uppercase;
+  color:var(--blue); font-weight:700}
+.lu-club{font-size:19px; font-weight:600; letter-spacing:-.012em; margin-top:6px;
+  line-height:1.25; overflow-wrap:anywhere}
+.lu-tournoi{font-size:14.5px; color:var(--ink-2); margin-top:2px}
+.lu-cats{font-size:14px; color:var(--ink-2); margin-top:9px}
+.lu-note{margin:10px 0 0; font-size:13.5px; line-height:1.45; color:var(--amber)}
+.lu-souci{grid-column:1 / -1; margin:0; font-size:13.5px; color:#B23F0D}
+@media (prefers-color-scheme:dark){ .lu-souci{color:#EE9058} }
+.lien-mot{font:inherit; color:var(--ink); background:none; border:0; padding:0;
+  cursor:pointer; text-decoration:underline; text-underline-offset:3px;
+  text-decoration-color:var(--line)}
+.lien-mot:hover{text-decoration-color:var(--green)}
+.groupes-liste{margin-top:14px; display:flex; gap:8px; flex-wrap:wrap; align-items:center}
+.groupes-liste[hidden]{display:none}
+.groupes-liste .groupe{text-decoration:none; font-size:14.5px; font-weight:500;
+  color:var(--ink-2); background:var(--sunk); border-radius:100px; padding:8px 15px;
+  border:1px solid transparent}
+.groupes-liste .groupe:hover{color:var(--ink); border-color:var(--green)}
+.groupes-liste .zone-mot{flex:1 0 100%; margin-top:4px}
+
+/* Le radar : cadre metal, ecran vert quadrille, croix de visee. Pendant le
+   scan l'aiguille tourne et traine un secteur lumineux derriere elle. */
+.scouter{display:inline-flex; align-items:center; gap:12px;
+  padding:12px 24px 12px 18px; border-radius:16px; font-size:16.5px; font-weight:600;
+  letter-spacing:-.005em; background:var(--sunk); color:var(--ink);
+  border:1px solid var(--line-soft); position:relative; overflow:hidden;
+  transition:border-color .2s, background .2s, box-shadow .25s}
+.scouter:hover{background:var(--line-soft); border-color:var(--green)}
+.scouter:active{transform:translateY(1px)}
+
+.radar{width:36px; height:38px; flex:none}
+.radar .cadre{fill:none; stroke:currentColor; stroke-width:2.6; opacity:.55}
+.radar .bouton{fill:currentColor; opacity:.55}
+.radar .ecran{fill:#0E5B2C}
+.radar .grille{fill:none; stroke:#0A7A38; stroke-width:.8; opacity:.85}
+.radar .croix{fill:none; stroke:#7BE06A; stroke-width:1.5; stroke-linecap:round; opacity:.9}
+.radar .secteur{fill:url(#radar-balai)}
+.radar .aiguille{fill:none; stroke:#8CFF6B; stroke-width:1.7; stroke-linecap:round}
+.balai-0{stop-color:#8CFF6B; stop-opacity:.55}
+.balai-1{stop-color:#8CFF6B; stop-opacity:0}
+
+/* Au repos l'aiguille est rangee : un radar qui tourne dans le vide ment. */
+.radar .balayage{opacity:0}
+.scouter[data-scan="1"] .radar .balayage{opacity:1;
+  transform-box:view-box; transform-origin:22px 24px;
+  animation:tourne 1.6s linear infinite}
+
+.scouter[data-scan="1"]{color:var(--green); border-color:var(--green);
+  background:rgba(29,131,72,.10); box-shadow:0 0 0 4px rgba(29,131,72,.10)}
+.scouter[data-scan="1"]::after{
+  content:""; position:absolute; inset:0; pointer-events:none;
+  background:linear-gradient(100deg, transparent 38%, rgba(29,131,72,.24) 50%, transparent 62%);
+  animation:balayage 1.6s linear infinite;
+}
+@media (prefers-color-scheme:dark){
+  .scouter[data-scan="1"]{background:rgba(90,201,139,.12); box-shadow:0 0 0 4px rgba(90,201,139,.10)}
+  .scouter[data-scan="1"]::after{
+    background:linear-gradient(100deg, transparent 38%, rgba(90,201,139,.22) 50%, transparent 62%)}
+}
+
+@keyframes tourne{ from{transform:rotate(0deg)} to{transform:rotate(360deg)} }
+@keyframes balayage{ from{transform:translateX(-100%)} to{transform:translateX(100%)} }
+
+@media (prefers-reduced-motion:reduce){
+  .scouter[data-scan="1"] .radar .balayage{animation:none}
+  .scouter[data-scan="1"]::after{display:none}
+}
+
+/* Les tiroirs : des tuiles, pas une barre grise ou tout se ressemble. Le
+   chiffre d'abord — c'est lui qu'on lit — et une couleur par question posee. */
+.tiroirs{display:flex; flex-direction:column; gap:10px; margin-top:18px}
+/* Chaque famille prend sa ligne : les trois se suivaient sur la meme,
+   et l'intitule « OÙ » se retrouvait coince entre deux boutons. */
+.tiroirs[hidden]{display:none}
+.tiroirs button{
+  display:flex; flex-direction:column; align-items:flex-start; gap:7px;
+  min-width:138px; padding:13px 16px 12px; border-radius:18px;
+  background:var(--card); color:var(--ink-2); text-align:left;
+  border:1px solid var(--line-soft);
+  box-shadow:0 1px 2px rgba(15,22,33,.04);
+  transition:border-color .18s, background .18s, box-shadow .18s, transform .12s;
+}
+.tiroirs button .n{font-size:26px; font-weight:600; line-height:1;
+  letter-spacing:-.03em; font-variant-numeric:tabular-nums; color:var(--ink)}
+/* Le pied : la pastille teintee du pictogramme, puis le mot. La couleur vient
+   d'une teinte par famille — l'oeil retrouve l'aviron ou le judo sans lire. */
+.tiroirs button .pied{display:flex; align-items:center; gap:7px}
+.tiroirs button .ico{flex:0 0 auto; width:24px; height:24px; border-radius:8px;
+  display:inline-flex; align-items:center; justify-content:center; font-size:14px;
+  background:hsl(var(--teinte, 210) 62% 94%)}
+.tiroirs button .nom{font-size:13.5px; font-weight:550; white-space:nowrap}
+@media (prefers-color-scheme:dark){
+  .tiroirs button{box-shadow:none}
+  .tiroirs button .ico{background:hsl(var(--teinte, 210) 32% 22%)}
+}
+.tiroirs button:hover{border-color:var(--line); transform:translateY(-1px);
+  box-shadow:0 3px 10px -4px rgba(15,22,33,.18)}
+.tiroirs button:active{transform:none}
+.tiroirs button[disabled]{opacity:.42; box-shadow:none; transform:none}
+.tiroirs button[disabled] .n{color:var(--ink-3)}
+
+/* Actif : la couleur du tiroir prend toute la tuile. */
+.tiroirs button.on{border-color:currentColor; border-width:1.5px;
+  box-shadow:0 4px 14px -6px rgba(15,22,33,.22)}
+/* Un tiroir de sport s'allume dans sa propre teinte, celle de sa pastille :
+   on sait d'un coup d'oeil lequel est ouvert, meme en bas de page. */
+.tiroirs button.teinte.on{color:hsl(var(--teinte) 54% 32%);
+  background:hsl(var(--teinte) 64% 96%); border-color:hsl(var(--teinte) 48% 64%)}
+.tiroirs button.teinte.on .n{color:inherit}
+.tiroirs button.teinte.on .ico{background:hsl(var(--teinte) 56% 88%)}
+@media (prefers-color-scheme:dark){
+  .tiroirs button.teinte.on{color:hsl(var(--teinte) 64% 74%);
+    background:hsl(var(--teinte) 34% 16%); border-color:hsl(var(--teinte) 38% 48%)}
+  .tiroirs button.teinte.on .ico{background:hsl(var(--teinte) 34% 26%)}
+}
+.tiroirs button.on .n, .tiroirs button.on .nom{color:inherit}
+
+.tiroirs .t-distance.on{color:var(--green); background:rgba(29,131,72,.12)}
+.tiroirs .t-journee.on{color:var(--blue); background:var(--blue-soft)}
+.tiroirs .t-bassins.on{color:var(--amber); background:rgba(138,97,0,.14)}
+.tiroirs .t-date.on{color:var(--amber); background:rgba(138,97,0,.14)}
+/* La rangee du tri ne se confond pas avec celles des tiroirs : pas de
+   compteur, un trait au-dessus, et des boutons plus discrets. C'est un
+   reglage, pas un filtre. */
+.tiroirs .rangee-tri{margin-top:4px; padding-top:9px;
+  border-top:1px dashed var(--line-soft)}
+.tiroirs .rangee-tri button{min-width:0; padding:6px 12px; font-size:13px}
+.tiroirs .rangee-tri button.on{color:var(--violet); background:var(--violet-soft);
+  border-color:var(--violet)}
+.tiroirs .t-gros.on{color:var(--green); background:var(--green-soft)}
+.tiroirs .t-gros:not(.on) .n{color:var(--green)}
+.tiroirs .t-weekend.on{color:var(--red); background:var(--red-soft)}
+.tiroirs .t-weekend:not(.on) .n{color:var(--red)}
+/* Les autos ne sont pas un sport de plus : le tiroir porte sa propre teinte,
+   distincte du vert et du bleu qui disent deja la distance juste en dessous. */
+.tiroirs .t-autos.on{color:#8A3FA0; background:rgba(138,63,160,.13)}
+.tiroirs .t-autos:not(.on) .n{color:#8A3FA0}
+@media (prefers-color-scheme:dark){
+  :root:not([data-theme="light"]) .tiroirs .t-autos.on{
+    color:#D8A2EA; background:rgba(216,162,234,.16)}
+  :root:not([data-theme="light"]) .tiroirs .t-autos:not(.on) .n{color:#D8A2EA}
+}
+:root[data-theme="dark"] .tiroirs .t-autos.on{
+  color:#D8A2EA; background:rgba(216,162,234,.16)}
+:root[data-theme="dark"] .tiroirs .t-autos:not(.on) .n{color:#D8A2EA}
+
+/* Au repos, un liseré rappelle la couleur sans crier. */
+.tiroirs .t-distance:not(.on) .n{color:var(--green)}
+.tiroirs .t-journee:not(.on) .n{color:var(--blue)}
+.tiroirs .t-bassins:not(.on) .n, .tiroirs .t-date:not(.on) .n{color:var(--amber)}
+@media (max-width:620px){ .tiroirs button{min-width:0; flex:1 1 44%} }
+.marque{font-size:13px; letter-spacing:.05em; text-transform:uppercase;
+  color:var(--ink-3); font-weight:600}
+.switch{margin-left:auto; text-decoration:none; font-size:14px; font-weight:500;
+  color:var(--ink-2); background:var(--sunk); border-radius:100px; padding:7px 14px; white-space:nowrap}
+.switch:hover{background:var(--line-soft); color:var(--ink)}
+.count{margin-left:auto; font-size:14px; color:var(--ink-3);
+  font-variant-numeric:tabular-nums; white-space:nowrap}
+.count:not(:empty) + .switch{margin-left:14px}
+.switch + .switch{margin-left:8px}
+
+button{font:inherit; cursor:pointer; border:0; border-radius:12px; padding:13px 22px; font-weight:500; font-size:16px}
+button:focus-visible{outline:3px solid var(--blue); outline-offset:2px}
+.primary{background:var(--blue); color:var(--blue-ink)}
+.primary:hover{filter:brightness(1.08)}
+.plain{background:var(--sunk); color:var(--ink)}
+.plain:hover{background:var(--line-soft)}
+.link{background:none; color:var(--ink-3); padding:13px 8px; font-size:15px}
+.link:hover{color:var(--ink)}
+.spacer{flex:1}
+button[disabled]{opacity:.45; cursor:default}
+
+footer{margin-top:44px; padding-top:22px; border-top:1px solid var(--line-soft);
+  display:flex; gap:18px; align-items:center; flex-wrap:wrap; font-size:14px; color:var(--ink-3)}
+footer a{color:var(--blue); text-decoration:none}
+footer a:hover{text-decoration:underline}
+
+.depot{
+  margin-top:14px; border:2px dashed var(--line); border-radius:18px;
+  padding:20px 22px; text-align:center; transition:border-color .18s, background .18s;
+}
+.depot.hot{border-color:var(--blue); background:var(--blue-soft)}
+.depot h3{margin:0; font-size:17px; font-weight:600; letter-spacing:-.008em}
+.depot p{margin:6px 0 0; color:var(--ink-2); font-size:15px}
+.depot .pick{margin-top:14px}
+.depot input[type=file]{display:none}
+.waiting{margin-top:16px; display:flex; gap:8px; flex-wrap:wrap; justify-content:center}
+.chip{background:var(--sunk); border-radius:100px; padding:5px 13px; font-size:13.5px; color:var(--ink-2);
+  max-width:100%; overflow:hidden; text-overflow:ellipsis; white-space:nowrap}
+.chip.up{background:var(--blue-soft); color:var(--blue)}
+.chip{display:inline-flex; align-items:center; gap:8px}
+.chip .x{border:0; background:none; color:var(--ink-3); cursor:pointer;
+  font-size:15px; line-height:1; padding:0 0 0 2px; border-radius:50%}
+.chip .x:hover{color:#B23F0D}
+
+/* ---------- flyers : section a part, vue scindee ---------- */
+body.split-on .wrap{max-width:1120px}
+.split{display:grid; grid-template-columns:minmax(0,1fr) minmax(0,340px);
+  gap:16px; align-items:start}
+.split[hidden]{display:none}
+@media (max-width:900px){ .split{grid-template-columns:minmax(0,1fr)} }
+
+.mini{background:var(--sunk); border:1px solid var(--line-soft);
+  border-radius:14px; overflow:hidden}
+.mini[hidden]{display:none}
+.mini-corps textarea{background:var(--card)}
+.colonne{position:sticky; top:14px; display:flex; flex-direction:column; gap:14px}
+@media (max-width:900px){ .colonne{position:static} }
+
+.carte-plan{display:block; width:100%; height:210px; border:0; background:var(--sunk)}
+.carte-mot{margin:0; padding:18px 18px; font-size:15px; color:var(--ink-3)}
+.carte-acts{padding:12px 14px 14px; display:flex; gap:8px; flex-wrap:wrap;
+  align-items:center}
+.carte-acts button{padding:9px 14px; font-size:14px}
+.modes{display:inline-flex; background:var(--sunk); border-radius:100px; padding:3px}
+.modes button{background:none; color:var(--ink-2); border-radius:100px;
+  padding:7px 15px; font-size:14px; font-weight:500}
+.modes button.on{background:var(--blue); color:var(--blue-ink)}
+.modes button:not(.on):hover{color:var(--ink)}
+.carte-cle{padding:0 14px 14px}
+.carte-cle p{margin:0 0 8px; font-size:13px; color:var(--ink-3)}
+.carte-cle .rangee{display:flex; gap:8px}
+.carte-cle input{flex:1; min-width:0; font:inherit; font-size:14px; padding:9px 12px;
+  border-radius:10px; border:1px solid var(--line-soft); background:var(--sunk); color:var(--ink)}
+.carte-cle input:focus{outline:none; border-color:var(--blue)}
+.carte-cle button{padding:9px 14px; font-size:14px}
+
+
+/* la fiche : gros et lisible, c'est ce qu'on lit d'un coup d'oeil */
+.fiche-corps{padding:18px 18px 22px}
+.f-club{font-size:19px; font-weight:600; letter-spacing:-.012em; line-height:1.25;
+  overflow-wrap:anywhere}
+.carte.ouverte .f-club{font-size:24px; letter-spacing:-.014em}
+.f-tournoi{font-size:16px; color:var(--ink-2); margin-top:4px}
+.f-source{font-size:12px; letter-spacing:.04em; text-transform:uppercase;
+  color:var(--ink-3); font-weight:600; margin-bottom:9px}
+.f-quand{display:flex; align-items:center; gap:9px; flex-wrap:wrap; margin-top:11px}
+/* La date est ce qu'on cherche en premier : elle se lit de loin, et son
+   liseré dit tout de suite s'il faut s'en occuper. */
+.f-date{font-size:18px; font-weight:650; letter-spacing:-.01em; color:var(--ink);
+  background:var(--sunk); border-radius:100px; padding:9px 17px; white-space:nowrap;
+  border:1.5px solid transparent; display:inline-flex; align-items:baseline; gap:9px}
+.carte.ouverte .f-date{font-size:21px; padding:11px 20px}
+.f-reste{font-style:normal; font-size:13.5px; font-weight:600; opacity:.85;
+  font-variant-numeric:tabular-nums}
+.f-date.urgent{border-color:var(--red, #c0392b); color:var(--red, #c0392b);
+  background:rgba(192,57,43,.10)}
+.f-date.bientot{border-color:var(--amber); color:var(--amber);
+  background:rgba(180,120,10,.10)}
+.f-date.passe{opacity:.55}
+.f-ou{font-size:14.5px; color:var(--ink-3); min-width:0; overflow-wrap:anywhere}
+
+/* Le jour est deja pris. Ni une alarme ni un detail : un fait, sous la date,
+   la ou on le cherche. Ca ne disqualifie pas la fiche — on peut vouloir
+   deplacer, ou faire les deux — mais ca se sait AVANT d'ecrire. */
+/* Deja booke : vert, et plus voyant que le conflit — c'est une bonne
+   nouvelle, pas un avertissement. */
+.f-booke{display:flex; flex-direction:column; gap:3px; margin-top:9px;
+  padding:10px 14px; border-radius:11px; background:var(--green-soft);
+  border:1px solid var(--green)}
+.f-booke b{font-size:14.5px; font-weight:700; color:var(--green)}
+.f-booke span{font-size:13.5px; color:var(--ink-2); overflow-wrap:anywhere}
+.f-pris{display:flex; flex-direction:column; gap:3px; margin-top:9px;
+  padding:9px 13px; border-radius:11px; background:var(--violet-soft);
+  border:1px solid var(--violet)}
+.f-pris b{font-size:13.5px; font-weight:700; color:var(--violet);
+  letter-spacing:.01em}
+.f-pris span{font-size:13.5px; color:var(--ink-2); overflow-wrap:anywhere}
+
+.f-paves{display:grid; grid-template-columns:1fr; gap:10px; margin-top:14px}
+.carte.ouverte .f-paves{grid-template-columns:repeat(auto-fit, minmax(210px, 1fr))}
+.f-dist, .f-equipes{margin-top:0; padding:14px 16px; border-radius:14px;
+  background:var(--sunk); display:flex; align-items:baseline; gap:10px; flex-wrap:wrap}
+
+.f-km, .f-nb{font-size:27px; font-weight:600; letter-spacing:-.02em; line-height:1.05;
+  font-variant-numeric:tabular-nums}
+/* Le temps de route decide plus que les kilometres : soixante-cinq bornes
+   d'autoroute font cinquante minutes, les memes dans l'arriere-pays en font
+   le double. Il etait en petit gris a cote du chiffre — il devient le second
+   chiffre de la ligne. */
+.f-min{font-size:20px; font-weight:600; letter-spacing:-.012em; color:var(--ink);
+  font-variant-numeric:tabular-nums}
+.f-min::before{content:"·"; margin-right:9px; color:var(--ink-3); font-weight:400}
+.carte.ouverte .f-min{font-size:23px}
+.f-unite{font-size:15px; color:var(--ink-2)}
+/* Le nombre d'equipes n'est renseigne que sur une fiche sur vingt, et c'est
+   lui qui dit ce que la journee rapportera. Il ne porte donc pas une couleur
+   de plus — les teintes vertes et ambre servent deja au verdict de distance
+   juste a cote — mais un liseré irisé, qui ne ressemble a rien d'autre dans
+   l'ecran et se remarque sans rien signifier de faux. */
+.f-equipes.connu{position:relative; background:var(--sunk);
+  border:2.5px solid transparent; border-radius:14px;
+  background-image:linear-gradient(var(--sunk), var(--sunk)),
+    conic-gradient(from var(--tour, 0deg), #ff5f6d, #ffc371, #7ee8fa,
+                   #a06bff, #ff5f6d);
+  background-origin:border-box; background-clip:padding-box, border-box;
+  animation:holo 7s linear infinite;
+  box-shadow:0 0 0 1px rgba(255,255,255,.04)}
+@property --tour{syntax:"<angle>"; inherits:false; initial-value:0deg}
+@keyframes holo{to{--tour:360deg}}
+@media (prefers-reduced-motion:reduce){.f-equipes.connu{animation:none}}
+.f-equipes.connu .f-nb{color:var(--ink)}
+.f-equipes.connu .f-unite{color:var(--ink-2)}
+/* Gros plateau : le chiffre merite d'etre vu de plus loin. */
+.f-equipes.connu.gros .f-nb{font-size:31px}
+.f-equipes.inconnu .f-nb{font-size:19px; font-weight:500; color:var(--ink-3)}
+.f-verdict{margin-left:auto; font-size:14px; font-weight:600; white-space:nowrap;
+  background:var(--card); border-radius:100px; padding:5px 13px; color:var(--ink-2)}
+.f-dist.proche, .f-dist.correct{background:rgba(29,131,72,.12)}
+.f-dist.proche .f-verdict, .f-dist.correct .f-verdict{color:var(--green)}
+.f-dist.loin{background:rgba(138,97,0,.14)}
+.f-dist.loin .f-verdict{color:var(--amber)}
+.f-dist.hors{background:rgba(178,63,13,.14)}
+.f-dist.hors .f-verdict{color:#B23F0D}
+@media (prefers-color-scheme:dark){ .f-dist.hors .f-verdict{color:#EE9058} }
+.f-dist.inconnu .f-km{font-size:19px; font-weight:500; color:var(--ink-3)}
+
+.f-bloc{margin-top:20px}
+.f-lab{font-size:12px; letter-spacing:.05em; text-transform:uppercase;
+  color:var(--ink-3); font-weight:600}
+.f-cats{display:flex; gap:8px; flex-wrap:wrap; margin-top:10px}
+.f-cat{font-size:17px; font-weight:500; color:var(--ink);
+  background:var(--sunk); border-radius:12px; padding:8px 14px}
+.f-faits{display:flex; gap:8px; flex-wrap:wrap; margin-top:10px}
+.f-fait{font-size:14px; color:var(--ink-2); background:var(--sunk);
+  border-radius:100px; padding:6px 13px}
+.f-rien{font-size:15px; color:var(--ink-3); margin-top:9px}
+.mini-head{padding:14px 16px; border-bottom:1px solid var(--line-soft);
+  display:flex; align-items:baseline; gap:10px}
+.mini-head .quoi{font-size:12px; letter-spacing:.05em; text-transform:uppercase;
+  color:var(--ink-3); font-weight:600; white-space:nowrap}
+.mini-qui{margin-left:auto; font-size:13px; color:var(--ink-3); max-width:56%;
+  overflow:hidden; text-overflow:ellipsis; white-space:nowrap}
+/* Une carte par tournoi : tout ce qui sert a decider tient dessus, et celle
+   qu'on ouvre prend la largeur pour derouler le message d'un bloc. */
+.liste{display:grid; grid-template-columns:repeat(auto-fill, minmax(310px, 1fr));
+  gap:14px; margin-top:18px; align-items:start}
+.liste[hidden]{display:none}
+
+.carte{position:relative; background:var(--card); border:1px solid var(--line-soft);
+  border-radius:16px; box-shadow:var(--lift); padding:16px 16px 14px; min-width:0}
+.carte.ouverte{grid-column:1 / -1; border-color:var(--blue);
+  box-shadow:0 0 0 2px var(--blue-soft), var(--lift)}
+.carte-x{position:absolute; top:9px; right:9px; border:0; background:none; cursor:pointer;
+  color:var(--ink-3); font-size:14px; line-height:1; padding:6px 8px; border-radius:50%}
+.carte-x:hover{color:#B23F0D; background:var(--sunk)}
+.carte-faits{min-width:0; padding-right:20px}
+/* Une fiche qu'on vient d'envoyer. Elle a quitte la pile cote serveur — son
+   tournoi est tranche — mais elle reste a l'ecran jusqu'au prochain
+   rafraichissement, verte et en tete. Sans ca, le clic sur « Envoyer »
+   faisait disparaitre la carte ET le message qui disait ce qui venait de se
+   passer : on ne savait plus ni si c'etait parti, ni ou c'etait alle. */
+.carte.partie{border-color:var(--green); box-shadow:0 0 0 2px var(--green-soft), var(--lift)}
+.carte-parti{display:flex; flex-wrap:wrap; align-items:baseline; gap:4px 10px;
+  margin:-4px 0 12px; padding:9px 13px; border-radius:11px;
+  background:var(--green-soft); border:1px solid var(--green)}
+.carte-parti b{font-size:13.5px; font-weight:700; color:var(--green)}
+.carte-parti span{font-size:13px; color:var(--ink-2)}
+.carte-parti .ou{overflow-wrap:anywhere}
+/* La barre du bas : c'est par la qu'on entre dans la fiche. Un contour franc
+   plutot qu'un bouton gris qui se confond avec le fond de la carte. */
+.carte-barre{margin-top:14px; display:flex; gap:8px; flex-wrap:wrap}
+.carte-barre button{padding:10px 18px; font-size:14.5px; font-weight:600;
+  border-radius:12px; border:1.6px solid transparent; transition:background .18s, border-color .18s}
+
+.carte-barre .voir{background:transparent; color:var(--blue); border-color:var(--blue)}
+.carte-barre .voir:hover{background:var(--blue-soft)}
+.carte-barre .voir.ouvert{background:var(--blue); color:var(--blue-ink); border-color:var(--blue)}
+.carte-barre .voir.ouvert:hover{filter:brightness(1.08)}
+
+.carte-barre{align-items:center}
+/* Petit, à côté de « Voir le message » : la question au sourceur se pose
+   en passant, avant d'ouvrir le message — pas une fois qu'on est en train
+   de l'écrire. */
+.carte-barre .boby{padding:8px 13px; font-size:13.5px; background:transparent;
+  color:var(--ink-2); border-color:var(--line)}
+.carte-barre .boby:hover:not(:disabled){color:var(--ink); border-color:var(--green)}
+.carte-barre .boby:disabled{opacity:1; cursor:default}
+.carte-barre .boby.oui{color:var(--green); border-color:var(--green)}
+.carte-barre .boby.non{color:var(--amber); border-color:var(--amber)}
+.carte-barre .boby.attente{color:var(--violet); border-color:var(--violet)}
+.carte-barre .source{margin-left:auto; width:36px; height:36px; padding:0;
+  display:inline-flex; align-items:center; justify-content:center; flex:0 0 36px;
+  background:transparent; color:var(--ink-2); border-color:var(--line)}
+.carte-barre .source svg{display:block}
+.carte-barre .source:hover{color:var(--ink); border-color:var(--line-strong, var(--ink-3))}
+.carte-corps{margin-top:16px; padding-top:16px; border-top:1px solid var(--line-soft)}
+
+.mini-corps{padding:12px 14px 0}
+.mini-corps textarea{display:block; width:100%; font:inherit; font-size:15.5px;
+  line-height:1.55; background:var(--sunk); color:var(--ink);
+  border:1px solid var(--line-soft); border-radius:12px; padding:14px 16px;
+  resize:none; overflow:hidden; outline:none}
+.mini-corps textarea:focus{border-color:var(--blue)}
+.mini-acts{padding:12px 14px 16px; display:flex; gap:8px; flex-wrap:wrap; align-items:center}
+.mini-acts button{padding:11px 16px; font-size:15px}
+.mini-note{flex:1 0 100%; margin:2px 0 0; font-size:13px; color:var(--ink-3)}
+.saisie-tel{flex:1 0 100%; display:flex; gap:8px; flex-wrap:wrap; align-items:center; margin-top:6px}
+.saisie-tel input{flex:1; min-width:150px; font:inherit; font-size:15px; padding:10px 13px;
+  border-radius:11px; border:1px solid var(--line-soft); background:var(--sunk); color:var(--ink)}
+.saisie-tel input:focus{outline:none; border-color:var(--blue)}
+.saisie-tel button{padding:10px 18px; font-size:15px}
+.deja{flex:1 0 100%; display:flex; gap:8px; flex-wrap:wrap; align-items:center;
+  margin-top:8px; padding-top:12px; border-top:1px solid var(--line-soft)}
+.deja[hidden]{display:none}
+.deja input{font:inherit; font-size:15px; padding:10px 13px; border-radius:11px;
+  border:1px solid var(--line-soft); background:var(--sunk); color:var(--ink)}
+.deja input[type=date]{flex:0 1 175px}
+.deja input[type=tel]{flex:1; min-width:150px}
+.deja input:focus{outline:none; border-color:var(--blue)}
+.deja button{padding:10px 18px; font-size:15px}
+.deja-mot{flex:1 0 100%; margin:0; font-size:13.5px; color:var(--ink-2); min-height:1em}
+.f-suivi{display:flex; gap:8px; flex-wrap:wrap; margin-top:14px}
+.saisie-mot{flex:1 0 100%; margin:0; font-size:13px; color:var(--ink-3);
+  font-variant-numeric:tabular-nums; min-height:1em}
+.mini-vide{margin:0; padding:16px 2px 6px; color:var(--ink-2); font-size:15px; line-height:1.5}
+
+.toast{position:fixed; left:50%; bottom:26px; transform:translate(-50%,160%);
+  background:var(--ink); color:var(--ground); padding:12px 20px; border-radius:12px;
+  font-size:15px; transition:transform .28s cubic-bezier(.4,1.2,.5,1); z-index:50; max-width:88vw}
+.toast.on{transform:translate(-50%,0)}
+@media (prefers-reduced-motion:reduce){*{transition:none!important}}
+
+/* L'affiche du tournoi : assez grande pour se lire, jamais au point de
+   pousser le message hors de l'ecran. */
+.affiche-cadre{padding:10px}
+.affiche-cadre a{display:block;line-height:0}
+.affiche-cadre img{width:100%;height:auto;max-height:560px;object-fit:contain;
+  border-radius:10px;background:#fff;cursor:zoom-in}
+@media (max-width:760px){ .affiche-cadre img{max-height:380px} }
+
+/* Les tiroirs, ranges par question plutot qu'en une longue rangee. */
+/* L'intitule etait une colonne de 78 px a gauche : « QUEL SPORT » y tombait
+   sur deux lignes, et son milieu ne s'alignait sur rien puisque la rangee
+   fait une ou deux lignes de tuiles selon la saison. Il passe donc au-dessus,
+   cale sur le bord gauche des tuiles — c'est un titre de rayon, pas une
+   etiquette coincee dans le rayon. */
+.rangee{display:flex;align-items:center;gap:9px;flex-wrap:wrap;margin:0 0 20px}
+.rangee:last-child{margin-bottom:0}
+.rangee-titre{flex:0 0 100%;margin:0 0 1px 3px;font-size:11px;
+  text-transform:uppercase;letter-spacing:.09em;color:var(--ink-3);
+  font-weight:700;line-height:1}
+/* La derniere rangee n'est plus un fourre-tout : elle porte les trois
+   questions qui font prendre la route. Son titre le dit. */
+.tiroirs .rangee:last-child .rangee-titre{color:var(--amber)}
+
+/* Ce que la recherche web a rapporte : un club nomme, des coordonnees lues
+   page par page. On montre toujours OU chaque numero a ete trouve — c'est ce
+   qui permet de le croire. */
+.fouille{margin-top:12px}
+.fouille-club{display:flex; gap:10px; align-items:center; flex-wrap:wrap;
+  margin:0 0 10px; font-size:16px}
+.fouille-liste{display:flex; flex-direction:column; gap:6px}
+.fouille-ligne{display:flex; gap:9px; align-items:center; flex-wrap:wrap;
+  background:var(--sunk); border-radius:10px; padding:8px 12px; font-size:14.5px}
+.fouille-ligne b{font-variant-numeric:tabular-nums}
+.fouille-tag{font-size:12px; background:var(--green-soft); color:var(--green);
+  border-radius:100px; padding:2px 9px; font-weight:600}
+.fouille-ou{flex:1 1 140px; min-width:0; font-size:12.5px; color:var(--ink-3);
+  overflow:hidden; text-overflow:ellipsis; white-space:nowrap}
+
+/* ---- Grands rassemblements : des cartes, pas des lignes de journal ---- */
+.rass-orga{margin-top:9px; font-size:14px; color:var(--ink-2)}
+.rass-barre-gestes{display:flex; gap:7px; flex-wrap:wrap; margin-top:12px}
+.rass-mot-boite:not(:empty){margin-top:12px; padding-top:12px;
+  border-top:1px solid var(--line-soft)}
+.rass-mot-boite textarea{width:100%; font:inherit; font-size:14.5px; line-height:1.55;
+  padding:12px 14px; border-radius:12px; border:1px solid var(--line);
+  background:var(--sunk); color:var(--ink); resize:vertical}
+.rass-gestes{display:flex; gap:7px; flex-wrap:wrap; margin-top:9px}
+#rass-liste{display:grid;gap:14px;grid-template-columns:repeat(auto-fill,minmax(300px,1fr))}
+.rass{background:var(--card);border:1px solid var(--line-soft);border-radius:14px;
+  padding:15px 16px 14px;display:flex;flex-direction:column;gap:11px}
+.rass-tete{display:flex;gap:12px;align-items:flex-start}
+.rass-picto{width:40px;height:40px;flex:0 0 40px;border-radius:11px;font-size:20px;
+  display:flex;align-items:center;justify-content:center;
+  background:hsl(var(--teinte) 55% 93%)}
+.rass-titres{min-width:0;flex:1}
+.rass-nom{font-size:15.5px;font-weight:600;line-height:1.3}
+.rass-genre{font-size:12.5px;color:var(--ink-3);margin-top:2px}
+.rass-faits{display:flex;flex-wrap:wrap;gap:6px}
+.rass-faits span{font-size:12.5px;padding:3px 10px;border-radius:100px;
+  background:var(--sunk);border:1px solid var(--line-soft);white-space:nowrap}
+.rass-quand{font-weight:600}
+.rass-quand i{font-style:normal;color:var(--ink-3);margin-left:6px;font-weight:400}
+.rass-note{margin-top:auto}
+.rass-jauge{height:6px;border-radius:100px;background:var(--line-soft);overflow:hidden}
+.rass-barre{height:100%;border-radius:100px;background:var(--ink-3)}
+.rass-note.fort .rass-barre{background:var(--green)}
+.rass-note.moyen .rass-barre{background:var(--amber)}
+.rass-mot{display:block;margin-top:5px;font-size:12px;color:var(--ink-3)}
+.rass-note.fort .rass-mot{color:var(--green)}
+@media (prefers-color-scheme:dark){
+  :root:not([data-theme="light"]) .rass-picto{background:hsl(var(--teinte) 38% 22%)}
+}
+:root[data-theme="dark"] .rass-picto{background:hsl(var(--teinte) 38% 22%)}
+
+/* Ce qu'on a lu sur les pages du club : chaque piste se clique, et dit d'ou
+   elle vient. On ne propose jamais un numero sans sa provenance. */
+.trouvailles{flex:1 0 100%;display:flex;flex-direction:column;gap:7px;margin-top:10px}
+.trouve{display:flex;flex-direction:column;align-items:flex-start;gap:2px;
+  width:100%;text-align:left;cursor:pointer;font:inherit;
+  background:var(--sunk);border:1.5px solid var(--line-soft);border-radius:12px;
+  padding:10px 14px}
+.trouve:hover{border-color:var(--ink-3)}
+.trouve b{font-size:17px;font-weight:650;letter-spacing:-.01em;
+  font-variant-numeric:tabular-nums}
+.trouve span{font-size:12.5px;color:var(--ink-3)}
+.trouve.mobile{border-color:var(--green)}
+.trouve.mobile b{color:var(--green)}
+.trouve.mail b{font-size:15px;font-weight:600;overflow-wrap:anywhere}
+/* Un club publie souvent DEUX numeros — le president et le secretaire, ou le
+   fixe du club et le portable de celui qui repond. On n'en choisissait qu'un :
+   l'autre etait perdu, et la relance partait vers la seule personne qui ne
+   repondait pas. On coche donc ceux qu'on veut, et on les fait tous. */
+.trouve.pris{border-color:var(--blue); background:var(--blue-soft, rgba(10,108,240,.12))}
+.trouve.pris::after{content:"✓ retenu"; font-size:12px; font-weight:700;
+  color:var(--blue); letter-spacing:.02em}
+.lot{display:flex; align-items:center; gap:10px; flex-wrap:wrap;
+  margin:12px 0 2px; padding:12px 14px; border-radius:13px;
+  background:var(--sunk); border:1px solid var(--line-soft)}
+.lot .dit{font-size:13.5px; color:var(--ink-3); flex:1; min-width:150px}
+.lot button{font:inherit; font-size:14.5px; font-weight:600; cursor:pointer;
+  padding:9px 15px; border-radius:11px; border:1px solid var(--green);
+  background:var(--green); color:#fff}
+.lot button:hover{filter:brightness(1.1)}
+.lot button.plain{background:transparent; color:var(--ink-2);
+  border-color:var(--line); font-weight:500}
+
+/* ---- Les gestes du message ------------------------------------------- */
+/* C'est la barre que Julien touche dix fois par jour. Premiere version : la
+   hierarchie passait par l'absence de bouton — les actions secondaires
+   n'etaient que du texte. Resultat, elles ne se voyaient pas comme cliquables.
+   Tout est donc un bouton ; ce qui change, c'est l'intensite. */
+.mini-acts{padding:14px; display:flex; gap:9px; flex-wrap:wrap; align-items:center}
+
+.geste{display:inline-flex; align-items:center; gap:8px; cursor:pointer;
+  font:inherit; font-size:14.5px; font-weight:550; letter-spacing:-.005em;
+  padding:11px 17px; border-radius:12px; white-space:nowrap;
+  background:#3a3a3d; border:1px solid #4d4d51; color:#f5f5f7;
+  box-shadow:0 1px 0 rgba(255,255,255,.05) inset, 0 1px 2px rgba(0,0,0,.3);
+  transition:transform .09s ease, filter .12s ease, box-shadow .12s ease}
+.geste .ico{font-size:15px; line-height:1}
+.geste:hover{filter:brightness(1.18)}
+.geste:active{transform:translateY(1px); box-shadow:0 0 0 rgba(0,0,0,0)}
+.geste:disabled{opacity:.45; cursor:default; transform:none; filter:none}
+
+/* L'envoi : c'est LE geste. Vert WhatsApp, plus grand, ombre portee. */
+.geste.maitre{font-size:15.5px; font-weight:650; padding:13px 21px;
+  background:linear-gradient(#0f7a3c, #0b6832); border-color:#095a2b; color:#fff;
+  box-shadow:0 1px 0 rgba(255,255,255,.22) inset, 0 6px 16px -7px rgba(31,168,85,.9)}
+
+/* Les pieces jointes vont par paire : un bleu sobre, distinct du vert d'envoi
+   parce qu'elles n'envoient rien — elles preparent le collage. */
+.geste.piece{background:linear-gradient(#3d4a63, #333e54); border-color:#4a5a78}
+
+/* Chercher un contact : une action franche, en gris clair. */
+.geste.trouver{background:linear-gradient(#4a4a4f, #3f3f44); border-color:#5c5c62}
+
+/* Envoyer par mail n'est pas envoyer par WhatsApp : meme geste, autre canal,
+   donc autre couleur. Declare apres « piece » et « trouver », sinon leur
+   regle generique lui reprendrait son fond — c'est ce qui avait vide le
+   bouton d'envoi en mode clair. */
+.geste.maitre.mail{background:linear-gradient(#2d5f9e, #244f86); border-color:#1e4270;
+  color:#fff;
+  box-shadow:0 1px 0 rgba(255,255,255,.2) inset, 0 6px 16px -7px rgba(45,95,158,.9)}
+
+/* La raison du classement : lisible, jamais tapageuse. */
+.f-fait.pourquoi{background:rgba(31,168,85,.14); border-color:rgba(31,168,85,.34);
+  color:#8fe0b0; font-weight:600}
+@media (prefers-color-scheme:light){
+  :root:not([data-theme="dark"]) .f-fait.pourquoi{
+    background:#e8f7ee; border-color:#bfe5cd; color:#0b6832}
+}
+
+/* Ce qui sert moins souvent reste un vrai bouton, juste plus sombre. */
+.geste.discret{background:#2e2e31; border-color:#414146; color:#c9c9ce;
+  font-weight:500}
+
+/* WhatsApp sur une ligne fixe : le bouton reste cliquable — on ne sait jamais,
+   un club peut avoir branche WhatsApp Business dessus — mais il cesse de se
+   presenter comme le bon geste. Il est barre d'un lisere, et c'est le mail
+   qui passe en vert a sa place. */
+.geste.fixe{background:#332c24; border-color:#574634; color:#d8c3a0; font-weight:500}
+.geste.fixe .ico{opacity:.6}
+
+/* En clair, la regle generique portait un selecteur plus fort que celui du
+   bouton d'envoi : elle lui remettait un fond blanc, alors que sa regle a lui
+   ne redonnait que la couleur du texte. Blanc sur blanc — le bouton
+   s'affichait vide. Chaque variante reprend donc son fond ici, au meme poids
+   de selecteur. */
+@media (prefers-color-scheme:light){
+  :root:not([data-theme="dark"]) .geste{
+    background:#fff; border-color:#d3d3d8; color:#1c1c1e;
+    box-shadow:0 1px 0 rgba(255,255,255,.9) inset, 0 1px 2px rgba(0,0,0,.09)}
+  :root:not([data-theme="dark"]) .geste.maitre{
+    background:linear-gradient(#0f7a3c, #0b6832); border-color:#095a2b; color:#fff;
+    box-shadow:0 1px 0 rgba(255,255,255,.28) inset, 0 6px 16px -7px rgba(31,168,85,.75)}
+  :root:not([data-theme="dark"]) .geste.piece{
+    background:linear-gradient(#eef3ff, #e2eaff); border-color:#b9c9ee; color:#1b3a70}
+  :root:not([data-theme="dark"]) .geste.trouver{
+    background:linear-gradient(#f6f6f8, #ececf0); border-color:#c2c2c9; color:#1c1c1e}
+  :root:not([data-theme="dark"]) .geste.fixe{
+    background:linear-gradient(#fdf6e9, #f7ecd8); border-color:#e0cfae; color:#6b4f21}
+  :root:not([data-theme="dark"]) .geste.maitre.mail{
+    background:linear-gradient(#2d5f9e, #244f86); border-color:#1e4270; color:#fff;
+    box-shadow:0 1px 0 rgba(255,255,255,.22) inset, 0 6px 16px -7px rgba(45,95,158,.75)}
+  :root:not([data-theme="dark"]) .geste.discret{
+    background:#f4f4f6; border-color:#dcdce0; color:#48484c}
+}
+/* Meme chose quand le theme clair est choisi a la main : la media query ne
+   s'applique pas, et le bouton redeviendrait vide sur un Mac en mode sombre. */
+:root[data-theme="light"] .geste{
+  background:#fff; border-color:#d3d3d8; color:#1c1c1e;
+  box-shadow:0 1px 0 rgba(255,255,255,.9) inset, 0 1px 2px rgba(0,0,0,.09)}
+:root[data-theme="light"] .geste.maitre{
+  background:linear-gradient(#0f7a3c, #0b6832); border-color:#095a2b; color:#fff}
+:root[data-theme="light"] .geste.piece{
+  background:linear-gradient(#eef3ff, #e2eaff); border-color:#b9c9ee; color:#1b3a70}
+:root[data-theme="light"] .geste.trouver{
+  background:linear-gradient(#f6f6f8, #ececf0); border-color:#c2c2c9; color:#1c1c1e}
+:root[data-theme="light"] .geste.maitre.mail{
+  background:linear-gradient(#2d5f9e, #244f86); border-color:#1e4270; color:#fff}
+:root[data-theme="light"] .geste.discret{
+  background:#f4f4f6; border-color:#dcdce0; color:#48484c}
+
+/* Les gestes de recherche partent a droite : l'envoi et les pieces jointes
+   forment un bloc a gauche, on ne les melange pas. */
+.mini-acts .geste.trouver:first-of-type{margin-left:auto}
+@media (max-width:660px){ .mini-acts .geste.trouver:first-of-type{margin-left:0} }
+
+/* Le pictogramme du sport, devant le nom : on identifie la discipline avant
+   d'avoir lu le titre. */
+.f-sport{display:inline-block; margin-right:9px; font-size:20px; line-height:1;
+  vertical-align:-1px; cursor:help}
+.carte.ouverte .f-sport{font-size:24px}
+
+
+/* Les boutons qui envoient vraiment : vert plein, pour qu'on ne les
+   confonde pas avec ceux qui preparent le message. */
+button.env-direct{font:inherit; font-size:14.5px; font-weight:650;
+  padding:8px 15px; border-radius:10px; cursor:pointer;
+  background:var(--green); border:1px solid var(--green); color:#fff;
+  display:inline-flex; align-items:center; gap:6px}
+button.env-direct:hover{filter:brightness(1.08)}
+button.env-direct:disabled{opacity:.6; cursor:default}
+button.env-direct.fait{background:var(--sunk); color:var(--ink-3);
+  border-color:var(--line); font-weight:600}
+
+/* Changer de numero : discret a cote du bouton vert. */
+button.env-chg{font:inherit; font-size:13.5px; padding:7px 11px; border-radius:10px;
+  cursor:pointer; background:var(--sunk); color:var(--ink-2);
+  border:1px solid var(--line)}
+button.env-chg:hover{color:var(--ink); border-color:var(--blue)}
+.env-autre{display:inline-flex; gap:6px; align-items:center}
+.env-autre input{font:inherit; font-size:14.5px; padding:7px 10px; width:150px;
+  border-radius:10px; background:var(--card); color:var(--ink);
+  border:1px solid var(--line)}
+.env-autre input:focus{outline:none; border-color:var(--blue)}
+.env-autre button{font:inherit; font-size:14px; padding:7px 12px; border-radius:10px;
+  cursor:pointer; background:var(--blue); border:1px solid var(--blue); color:#fff}
+</style>
+<link rel="stylesheet" href="/nav.css">
+
+<script>
+  // Le theme choisi en bas du menu vaut pour tous les ecrans, pas seulement
+  // la plateforme. Pose avant tout rendu, sinon la page clignote.
+  try {
+    var t = localStorage.getItem('theme');
+    if (t === 'dark' || t === 'light') document.documentElement.dataset.theme = t;
+  } catch (e) {}
+</script>
+<link rel="stylesheet" href="/bitchat.css">
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <span class="marque">SnapActions</span>
+    <span class="count" id="flyer-count"></span>
+  </header>
+
+  <!-- Rangee par defaut : Julien s'en sert rarement. Elle s'ouvre depuis le
+       menu (Rapide > Déposer un flyer), au collage, au glisser, ou d'elle-meme
+       quand des flyers attendent. -->
+  <section class="zone" id="zone-flyer" hidden>
+    <!-- La boite de depot a son propre ecran (Rapide > Deposer un flyer) :
+         ici elle noyait le Reperage. Ne reste que ce qu'elle a produit. -->
+    <p id="soucis" style="margin:0 0 10px;font-size:13.5px;color:var(--ink-3)" hidden></p>
+
+    <div class="resultat" id="resultat" hidden></div>
+    <p class="zone-mot" id="flyer-vide" hidden>Aucun flyer en attente. Dépose-en un ci-dessus.</p>
+    <div class="liste" id="flyer-liste" hidden></div>
+  </section>
+
+  <section class="zone" id="zone-net">
+    <div class="zone-head">
+      <h2>Trouvés sur le net</h2>
+      <span class="count" id="net-count"></span>
+      <button class="scouter" id="veille"
+              title="Interroge les annuaires de tournois en ligne. Les groupes Facebook, eux, sont ouverts par la routine de 7 h 30 et dépouillés au favori : Meta ne permet aucune lecture automatisée.">
+        <svg class="radar" viewBox="0 0 44 46" aria-hidden="true">
+          <defs>
+            <clipPath id="radar-ecran"><circle cx="22" cy="24" r="16.4"/></clipPath>
+            <radialGradient id="radar-balai" cx="50%" cy="50%" r="50%">
+              <stop offset="0" class="balai-0"/>
+              <stop offset="1" class="balai-1"/>
+            </radialGradient>
+          </defs>
+          <path class="bouton" d="M18.6 8.4a3.4 3.4 0 0 1 6.8 0v2.4h-6.8z"/>
+          <circle class="cadre" cx="22" cy="24" r="19.6"/>
+          <circle class="ecran" cx="22" cy="24" r="16.4"/>
+          <g class="grille" clip-path="url(#radar-ecran)">
+            <path d="M6 13h32M6 18.5h32M6 24h32M6 29.5h32M6 35h32"/>
+            <path d="M11 8v32M16.5 8v32M22 8v32M27.5 8v32M33 8v32"/>
+          </g>
+          <path class="croix" d="M22 15.5v17M13.5 24h17"/>
+          <g class="balayage" clip-path="url(#radar-ecran)">
+            <path class="secteur" d="M22 24 L22 7.6 A16.4 16.4 0 0 1 35.6 15.2 Z"/>
+            <path class="aiguille" d="M22 24V7.6"/>
+          </g>
+        </svg>
+        <span class="scouter-mot">Scanner</span>
+      </button>
+    </div>
+    <p class="zone-mot portee">Le scan interroge les annuaires en ligne.
+      La routine de 7 h 30 ouvre les groupes Facebook dans Chrome ;
+      <button type="button" class="lien-mot" id="groupes" aria-expanded="false"
+        title="Ouvre les grilles d'affiches et la boîte de collage">le favori « Lire les annonces »</button>
+      en fait des fiches.</p>
+    <div class="groupes-liste" id="groupes-liste" hidden></div>
+    <p class="zone-mot" id="soucis-net" hidden></p>
+
+    <!-- Les grands rassemblements avaient leur propre section, avec leurs
+         propres cartes : cent huit fiches qui figuraient DEJA dans la liste
+         ci-dessous, puisque c'est la meme table. Deux écrans pour les mêmes
+         dates, et des cartes moins completes dans le second. Ils sont
+         maintenant dans les tiroirs, avec tout le reste. Reste l'outil de
+         saisie, replie : c'est une porte d'entree, pas un ecran. -->
+    <details class="coller-annonces">
+      <summary>Coller des annonces d'agenda ou de groupe</summary>
+      <p class="zone-mot">Fêtes, brocantes, carnavals, courses, kermesses, galas —
+        tout ce qui attire du monde et se vend en photos aux gens présents.
+        Chaque annonce reçoit une note : plus il y a de familles et de foule en
+        plein air, plus elle monte. Celles que vous gardez rejoignent les
+        tiroirs ci-dessous.</p>
+      <p class="zone-mot">
+        <button type="button" class="plain" id="rass-chasse">Où chercher</button>
+      </p>
+      <div class="groupes-liste" id="rass-liens" hidden></div>
+      <textarea id="rass-collage" rows="3"
+        placeholder="Colle ici des annonces d'agenda ou de groupe (⌘V)…"
+        style="width:100%;margin-top:10px"></textarea>
+      <p class="zone-mot">
+        <button type="button" class="primary" id="rass-lire">Noter les annonces</button>
+      </p>
+      <div id="rass-resultat"></div>
+    </details>
+
+    <div class="tiroirs" id="net-tiroirs" hidden></div>
+    <p class="zone-mot" id="net-vide" hidden>Rien pour l'instant. Clique sur « Chercher sur le net ».</p>
+    <div class="liste" id="net-liste" hidden></div>
+  </section>
+
+  <footer>
+    <span class="spacer"></span>
+    <a href="#" id="refresh">Actualiser</a>
+  </footer>
+</div>
+<div class="toast" id="toast"></div>
+
+<script>
+"use strict";
+const $ = s => document.querySelector(s);
+
+async function api(path, method, body){
+  const r = await fetch(path, {
+    method: method || "GET",
+    headers: body ? {"Content-Type":"application/json"} : undefined,
+    body: body ? JSON.stringify(body) : undefined
+  });
+  const txt = await r.text();
+  let data = null;
+  try { data = txt ? JSON.parse(txt) : null; } catch (e) { data = null; }
+  if (!r.ok) throw new Error((data && (data.error || data.message)) || ("Erreur " + r.status));
+  return data;
+}
+
+let tt;
+function toast(msg){
+  const t = $("#toast"); t.textContent = msg; t.classList.add("on");
+  clearTimeout(tt); tt = setTimeout(() => t.classList.remove("on"), 2600);
+}
+
+function jour(iso){
+  if (!iso) return "";
+  const d = new Date(iso + "T12:00:00");
+  if (isNaN(d)) return iso;
+  return d.toLocaleDateString("fr-FR", {weekday:"short", day:"numeric", month:"short"});
+}
+
+/* ---------- trois sections, une seule mecanique ----------
+   Chaque tournoi est une ligne qui se deplie sur sa propre fiche. Trente
+   pastilles au-dessus d'un panneau detache obligeaient a faire l'aller-retour
+   des yeux ; ici ce qu'on lit est sous ce qu'on a clique. Une seule ligne
+   ouverte a la fois, et le contenu n'est construit qu'a l'ouverture — sinon
+   quarante cartes se chargeraient pour rien. */
+
+function neud(tag, cls, txt){
+  const n = document.createElement(tag);
+  if (cls) n.className = cls;
+  if (txt != null) n.textContent = txt;
+  return n;
+}
+
+function panneau(prefixe){
+  const q = suffixe => $("#" + prefixe + "-" + suffixe);
+  return {
+    nom: prefixe,
+    fiches: [], toutes: [], ouvert: null, jeton: 0, epingles: [],
+    tiroir: (function(){
+      try {
+        const garde = localStorage.getItem("tiroir-" + prefixe) || "journee";
+        /* « Lyon & Toulouse » s'est scinde en deux tiroirs. Sans cette reprise,
+           un ecran qui l'avait ouvert retombe sur « Tout » sans bouton allume :
+           la liste change toute seule et plus rien n'a l'air selectionne. */
+        return garde === "lointains" ? "lyon" : garde;
+      }
+      catch (e) { return "journee"; }
+    })(),
+    /* Le tiroir dit QUOI montrer, le tri dit DANS QUEL ORDRE. Deux questions
+       differentes : « les gros plateaux » et « par equipes » se ressemblent,
+       mais l'un ecarte les petits tournois et l'autre les garde en bas. */
+    tri: (function(){
+      try { return localStorage.getItem("tri-" + prefixe) || "auto"; }
+      catch (e) { return "auto"; }
+    })(),
+    tiroirs: q("tiroirs"), liste: q("liste"), compte: q("count"),
+  };
+}
+
+const P_FLYER = panneau("flyer");
+const P_NET = panneau("net");
+const PANNEAUX = [P_FLYER, P_NET];
+
+/* La grille a besoin de place des qu'il y a des cartes : a 640 px elles se
+   suivent une par ligne et la page fait des kilometres. */
+function largeurPage(){
+  document.body.classList.toggle("split-on", PANNEAUX.some(P => P.fiches.length));
+}
+
+/* ---------- la boite a flyers, rangee ----------
+   Elle ne prend plus la tete de la page. Elle se montre quand on la demande,
+   ou quand il y a quelque chose dedans ; sinon elle reste cachee. */
+let flyerDemande = /^#flyer/.test(location.hash);
+let flyerEnAttente = 0;
+
+function majZoneFlyer(){
+  const z = $("#zone-flyer");
+  if (!z) return;
+  z.hidden = !(flyerDemande || flyerEnAttente || P_FLYER.toutes.length);
+}
+
+function montrerFlyers(defiler){
+  flyerDemande = true;
+  majZoneFlyer();
+  if (defiler) $("#zone-flyer").scrollIntoView({block: "start", behavior: "smooth"});
+}
+
+function basculerFlyers(){
+  if (!$("#zone-flyer").hidden && flyerDemande) {
+    flyerDemande = false;
+    majZoneFlyer();
+    if (!$("#zone-flyer").hidden) toast("Des flyers attendent : la boîte reste ouverte");
+    return;
+  }
+  montrerFlyers(true);
+}
+window.basculerFlyers = basculerFlyers;
+
+function fermer(P){
+  P.liste.innerHTML = "";
+  const vide = $("#" + P.nom + "-vide");
+  if (vide) vide.hidden = false;
+  P.liste.hidden = true;
+  if (P.tiroirs) P.tiroirs.hidden = true;
+  P.compte.textContent = "";
+  P.ouvert = null;
+  largeurPage();
+}
+
+async function aValider(){
+  let items = [];
+  await chargerReglages();   // fixe JOURNEE_MIN avant le premier tri
+  /* On demande les deux casiers : les tiroirs « Belgique » et « Hors de
+     France » rangent le reseau, et le tiroir par defaut garde ta zone. */
+  try { items = ((await api("/api/tournaments/a-valider?portee=tout")) || {}).items || []; }
+  catch (e) { PANNEAUX.forEach(fermer); return; }
+
+  remplir(P_FLYER, items.filter(t => t.source === "Flyer depose"));
+  remplir(P_NET, items.filter(t => t.source !== "Flyer depose"));
+  majZoneFlyer();
+}
+
+function remplir(P, liste){
+  /* Les fiches parties ne sont plus dans ce que l'API rend : on les remet
+     devant soi-meme, et on les epingle pour qu'aucun tiroir ne les cache. */
+  const partis = partisDe(P);
+  const vus = {};
+  liste.forEach(t => vus[cleFiche(t)] = true);
+  const revenants = partis.filter(t => !vus[cleFiche(t)]);
+  P.toutes = revenants.concat(liste);
+  P.epingles = partis.map(cleFiche);
+  if (!P.toutes.length) { fermer(P); return; }
+  if (P.tiroirs) { appliquerTiroir(P); return; }
+  P.fiches = P.toutes;
+  majListe(P);
+}
+
+/* ---------- les tiroirs de la veille ----------
+   Deux cent quarante fiches dont la moitie a plus de cinq heures de route :
+   la liste brute ne se lit pas. Les tiroirs repondent aux seules questions qui
+   se posent — est-ce assez pres, est-ce bientot, et est-ce l'un des deux
+   bassins pour lesquels Julien accepte de rouler loin. */
+const PROCHES = ["proche", "correct"];
+
+/* « Dans la journee » veut dire aller-retour dans la journee : au-dela de deux
+   heures a l'aller, la journee y passe. Meme valeur que le perimetre applique
+   a l'entree en base (reglage perimetre_min) — un seul seuil, pour que l'ecran
+   et le filtre ne puissent pas raconter deux choses differentes. */
+let JOURNEE_MIN = 120;
+
+/* Le second point d'appui. Un evenement a vingt minutes d'Hyeres est faisable
+   meme s'il est a deux heures de Cannes : juger tout au depart de Cannes le
+   faisait disparaitre. Le calcul est fait par le serveur, qui connait les
+   temps de route ; ici on ne fait que lire son verdict. */
+function dansUnBassin(t){
+  return t.autour_hyeres === true;
+}
+
+/* Les deux bassins lointains ou Julien travaille quand meme : il y monte pour
+   plusieurs jours, et le voyage se groupe. Ils ne se melangent pas a ce qui se
+   fait dans la journee — et pas davantage entre eux : monter a Lyon et
+   descendre a Toulouse sont deux voyages qui ne se decident pas ensemble, donc
+   deux tiroirs. */
+const DEPTS_LYON = ["69", "01", "38", "42", "26", "71", "73", "74"];
+const DEPTS_TOULOUSE = ["31", "81", "82", "32", "09", "11", "65"];
+
+function dansLyon(t){
+  return DEPTS_LYON.indexOf(String(t.dept || "")) >= 0;
+}
+
+function dansToulouse(t){
+  return DEPTS_TOULOUSE.indexOf(String(t.dept || "")) >= 0;
+}
+
+/* L'Est-Var : Frejus, Saint-Raphael et leur arriere-pays. Quarante minutes de
+   Cannes, donc deja dans « a bonne distance » — mais noye parmi deux cent
+   trente-neuf autres. Son propre tiroir le rend visible.
+
+   On range par COMMUNE et pas par distance : le departement 83 descend
+   jusqu'a Toulon, et un tiroir « Est-Var » qui remonterait La Seyne ne
+   servirait a rien. */
+const COMMUNES_EST_VAR = [
+  "frejus", "saint-raphael", "st-raphael", "saint raphael",
+  "le muy", "puget-sur-argens", "roquebrune-sur-argens",
+  "les adrets-de-l'esterel", "les adrets de l'esterel",
+  "bagnols-en-foret", "saint-aygulf", "agay", "boulouris", "valescure",
+  "callian", "montauroux", "fayence", "seillans", "tourrettes",
+  "trans-en-provence", "la motte", "vidauban", "le cannet-des-maures",
+  "les arcs", "taradeau", "draguignan", "lorgues", "flayosc",
+  "sainte-maxime", "plan-de-la-tour", "grimaud", "cogolin", "gassin",
+];
+
+function _platVille(v){
+  return String(v || "").toLowerCase()
+    .normalize("NFD").replace(/[\u0300-\u036f]/g, "")
+    .replace(/\s+/g, " ").trim();
+}
+
+function dansEstVar(t){
+  const v = _platVille(t.city || t.ville);
+  if (!v) return false;
+  for (let i = 0; i < COMMUNES_EST_VAR.length; i++) {
+    const c = COMMUNES_EST_VAR[i];
+    if (v === c || v.indexOf(c) === 0) return true;
+  }
+  return false;
+}
+
+function minutes(t){
+  return t.trajet_min == null ? null : Number(t.trajet_min);
+}
+
+/* Les liens partent dans Chrome, pas dans le navigateur qui affiche la page :
+   les sessions WhatsApp et Facebook y vivent. window.open() ne sait pas sortir
+   de son propre navigateur, donc c'est le serveur qui ouvre. Si l'appel echoue,
+   on retombe sur window.open plutot que de ne rien faire. */
+function ouvrirLien(url){
+  if (!url) return;
+  fetch("/api/ouvrir", {
+    method: "POST",
+    headers: {"Content-Type": "application/json"},
+    body: JSON.stringify({url: url}),
+  }).then(r => { if (!r.ok) throw new Error("refus"); })
+    .catch(() => window.open(url, "_blank", "noopener"));
+}
+
+function km(t){
+  return t.distance_km == null ? 999999 : Number(t.distance_km);
+}
+
+function parDate(a, b){
+  return String(a.start_date || "9999").localeCompare(String(b.start_date || "9999"));
+}
+
+/* L'ordre des priorites de Julien, dans cet ordre : ce qui est a bonne
+   distance, puis ce qui arrive le plus tot, puis le nombre d'equipes — plus
+   il y a d'equipes, plus il y a de familles, donc de photos vendues.
+
+   Trier d'abord aux kilometres melangeait un tournoi a 30 km dans six mois
+   avec un autre a 35 km la semaine prochaine. On regroupe donc par palier de
+   trajet : a l'interieur d'un meme palier, c'est la date qui tranche. */
+function palier(t){
+  const m = t.trajet_min == null ? null : Number(t.trajet_min);
+  if (m == null) return km(t) <= 40 ? 0 : 3;   // sans temps de route, au km
+  if (m <= 45) return 0;                        // dans la journee, sans y penser
+  if (m <= 90) return 1;                        // faisable en y pensant
+  if (m <= 180) return 2;                       // ca se groupe avec autre chose
+  return 3;
+}
+
+function equipes(t){
+  return t.nb_equipes == null ? -1 : Number(t.nb_equipes);
+}
+
+/* Le serveur a deja pese chaque fiche : du monde, atteignable, encore dans
+   les temps pour etre demarche. Trier ici par paliers de distance defaisait
+   ce travail — le Marathon Nice-Cannes et la No Finish Line de Monaco,
+   quarante mille personnes a moins d'une heure, repassaient derriere des
+   plateaux de quatre equipes qui se trouvaient dix kilometres plus pres.
+   On suit donc le classement du serveur, et on garde l'ancienne regle pour
+   les fiches qu'il n'a pas pesees. */
+/* L'ordre des disciplines, et il passe avant tout le reste.
+
+   Le foot d'abord, le badminton ensuite, la voile en troisieme : c'est
+   l'ordre que Julien a demande, et c'est celui de son carnet de commandes.
+   La suite suit ce qui remplit vraiment une journee — un plateau de jeunes
+   et des familles qui achetent — en s'appuyant sur les licencies de moins
+   de vingt ans du 06 et du 83 : gymnastique 3 500, combat 2 700, basket et
+   hand 4 200 a eux deux. Les engins et le velo ferment la marche : on y
+   photographie des machines, pas des enfants dont les parents achetent. */
+const ORDRE_SPORT = ["foot", "badminton", "eau", "gym", "ballon", "combat",
+                     "raquette", "mode", "fetes", "cheval", "course",
+                     "montagne", "velo", "autos", "divers"];
+
+function rangSport(t){
+  let cle = familleSport(t);
+  /* Le badminton sort de la famille « raquettes » : c'est lui qui apporte
+     les plus gros plateaux de la base, pas le tennis de table. */
+  if (cle === "raquette"
+      && /badminton/i.test(String(t.sport || "") + " " + String(t.name || ""))) {
+    cle = "badminton";
+  }
+  const i = ORDRE_SPORT.indexOf(cle);
+  return i < 0 ? ORDRE_SPORT.length : i;
+}
+
+function parValeur(a, b){
+  const r = rangSport(a) - rangSport(b);
+  if (r) return r;
+  const va = a.valeur, vb = b.valeur;
+  if (va != null && vb != null && va !== vb) return vb - va;
+  return (palier(a) - palier(b))
+      || parDate(a, b)
+      || (equipes(b) - equipes(a));
+}
+
+/* Par la route, du plus pres au plus loin. Une fiche sans temps de route
+   part a la fin : on ne la met pas devant une qu'on sait a vingt minutes. */
+function parRoute(a, b){
+  const m = t => { const v = minutes(t); return v == null ? 99999 : v; };
+  return (m(a) - m(b)) || parDate(a, b) || (equipes(b) - equipes(a));
+}
+
+/* Les trois reglages de l'ordre, plus celui qu'on avait avant : chaque tiroir
+   a son idee de ce qui vient en premier, et elle est bonne la plupart du
+   temps. « Au mieux » la garde ; les trois autres la remplacent. */
+const TRIS = [
+  {cle: "auto",     nom: "\u26a1 Au mieux",  fn: null},
+  {cle: "equipes",  nom: "\ud83d\udc65 \u00c9quipes",  fn: parTaille},
+  {cle: "distance", nom: "\ud83d\udccd Distance", fn: parRoute},
+  {cle: "quand",    nom: "\ud83d\udcc5 Date",     fn: parDate},
+];
+
+/* Combler un desistement n'est pas prospecter. Ce qui decide, dans l'ordre :
+   est-ce que je peux y aller (ma zone avant celle du sourceur), combien de
+   route, et seulement ensuite la taille du plateau. Le classement par valeur
+   mettait le Luxembourg devant Le Pradet — vrai sur un mois, absurde a J-2. */
+function parWeekEnd(a, b){
+  const mien = t => String(t.portee || "pour_moi") === "reseau" ? 1 : 0;
+  const route = t => { const m = minutes(t); return m == null ? 99999 : m; };
+  return (mien(a) - mien(b))
+      || (route(a) - route(b))
+      || (equipes(b) - equipes(a))
+      || parDate(a, b);
+}
+
+/* Dans le tiroir des gros plateaux, c'est le nombre d'equipes qui range —
+   sinon le classement par valeur remet les proches devant, et on perd
+   justement ce qu'on etait venu voir. */
+function parTaille(a, b){
+  return (equipes(b) - equipes(a)) || parDate(a, b);
+}
+
+function parDistance(a, b){
+  return (rangSport(a) - rangSport(b))
+      || (palier(a) - palier(b))
+      || parDate(a, b)
+      || (equipes(b) - equipes(a));
+}
+
+/* Le samedi et le dimanche qui viennent, en ISO.
+   Un desistement se comble dans les quarante-huit heures : ce qui compte
+   alors n'est ni la distance ni la taille du plateau, c'est la date. Le
+   tiroir « Bientot » melange trente jours — on ne retrouve pas dedans les
+   deux dates qu'on cherche.
+   Le samedi en cours compte encore : on ne raye pas la journee a 9 h. Et le
+   dimanche, on regarde deja le week-end suivant — le jour meme, il est trop
+   tard pour decrocher un telephone. */
+function weekEndProche(){
+  const d = new Date();
+  d.setHours(12, 0, 0, 0);
+  const j = d.getDay();                      // 0 = dimanche, 6 = samedi
+  d.setDate(d.getDate() + (j === 6 ? 0 : (6 - j + 7) % 7));
+  const sam = d.toISOString().slice(0, 10);
+  const dim = new Date(d.getTime() + 86400000).toISOString().slice(0, 10);
+  return [sam, dim];
+}
+
+/* Une fiche couvre-t-elle l'un des deux jours ? Les tournois de deux jours
+   ont une date de fin ; les autres n'ont que leur date de debut. */
+function ceWeekEnd(t){
+  const debut = String(t.start_date || "");
+  if (!debut) return false;
+  const fin = String(t.end_date || "") || debut;
+  const [sam, dim] = weekEndProche();
+  return debut <= dim && fin >= sam;
+}
+
+/* Ce qui merite d'apparaitre : a portee de journee, ou dans un bassin. */
+function utile(t){
+  const m = minutes(t);
+  if (dansUnBassin(t)) return true;
+  return m != null && m <= JOURNEE_MIN;
+}
+
+/* Le foot represente neuf fiches sur dix de la veille, alors que les dates
+   reellement travaillees sont du basket, de la voile, de la danse. Melanges,
+   les quelques evenements hors foot disparaissent sous les tournois U9. Ils
+   ont donc leur tiroir, place en premier. */
+/* « U11 », « U17 » : des categories de jeunes, pas une preuve de football.
+   Le badminton, le ski et l'aviron s'en servent autant — et six fiches de ces
+   sports se retrouvaient dans le tiroir Football a cause de cette seule
+   regle. Le sport annonce tranche donc en premier, et il est renseigne sur
+   les cent soixante-dix-neuf fiches de foot.
+   Les categories ne servent plus qu'en dernier recours, quand la discipline
+   est inconnue : c'est le cas de la Cazal Kid Cup, entree a la main sans
+   sport, que seules ses categories U7/U8/U9 rattachent au football. */
+const FOOT = /\bfoot|football|futsal/i;
+
+function estFoot(t){
+  if (estRassemblement(t)) return false;   // un rallye n'est pas un tournoi
+  const sport = String(t.sport || "").trim();
+  if (sport) return FOOT.test(sport);
+  return /\bfoot|football|futsal|\bu\s?\d{1,2}\b/i.test(
+    [t.name, t.categories].join(" "));
+}
+
+/* Les rassemblements d'autos et de motos ne sont pas un sport de plus : on n'y
+   vend pas des photos aux parents d'un plateau U10 mais aux proprietaires des
+   voitures, la saison n'est pas la meme, et le message non plus. Ranges dans
+   « Autres sports », les quarante-cinq fiches se melaient au judo, a l'aviron
+   et a la danse — et c'est precisement ce qu'on cherchait a separer.
+   Le champ « sport » suffit a les reconnaitre : les quarante-cinq portent
+   toutes « auto » ou « moto » (Sport auto, Rassemblement auto et moto,
+   Course / circuit auto, Rassemblement moto). Les agendas d'ou elles viennent
+   servent de filet pour celles qui arriveraient sans discipline renseignee. */
+const SOURCES_RASSEMBLEMENT =
+  /retrocalage|rassemblements? auto|agenda lva|automobile club|carte ffm/i;
+
+/* Les disciplines de la federation de motocyclisme ne portent pas toutes le
+   mot « moto » : un trial, un enduro ou une course de vitesse sont pourtant
+   bien des engins a moteur, et c'est le meme public qui achete ses photos.
+   Sans elles, elles seraient tombees dans « Autres sports », a cote du judo. */
+const ENGINS = /\b(auto|moto|quad|ssv|buggy|trial|enduro|motocross|vitesse|karting|rallye|slalom|4x4|tout[- ]terrain)/i;
+
+function estRassemblement(t){
+  const sport = String(t.sport || "").trim();
+  if (sport) return ENGINS.test(sport);
+  /* Sans discipline annoncee, le nom tranche : « Rallye du Var » et « 62e
+     rallye Antibes Cote d'Azur » arrivent des agendas de ville, qui ne
+     remplissent jamais le champ sport, et finissaient a cote du judo.
+     On ne lit le nom QUE dans ce cas : sinon « Tournoi quad » d'un club de
+     judo emporterait la fiche entiere. */
+  if (ENGINS.test(String(t.name || ""))) return true;
+  return SOURCES_RASSEMBLEMENT.test(String(t.source || ""));
+}
+
+/* « Autres sports » mettait dans un seul tas l'aviron, le badminton, le judo
+   et la danse : quatre-vingts fiches ou l'on ne voyait plus rien. Les voici
+   rangees par public, parce que c'est le public qui decide du message, de la
+   saison et du prix — on ne parle pas a des parents d'U9, a un club d'aviron
+   et a un plateau de judo de la meme facon.
+   Le sport annonce tranche ; quand il manque, le nom et les categories
+   servent de secours, comme pour le football. */
+const FAMILLES_SPORT = [
+  {cle: "eau", teinte: 200, nom: "\ud83d\udea3 Eau & nautisme",
+   re: /aviron|voile|r[ée]gate|nautique|nautisme|kayak|cano[ëe]|paddle|surf|natation|baignade|swimrun|plong[ée]e|water[- ]?polo|optimist|catamaran|plaisance/i},{cle: "course", teinte: 25, nom: "\ud83c\udfc3 Course & trail",re: /trail|course [àa] pied|running|\bcross\b|marathon|athl[ée]tisme|triathlon|duathlon|\braid\b|foul[ée]es|corrida|ultra/i},
+
+  {cle: "raquette", teinte: 78, nom: "\ud83c\udff8 Raquettes",
+   re: /badminton|tennis|ping[- ]?pong|padel|squash|pickleball/i},
+
+  /* Vingt-six fiches de tir a l'arc dormaient dans « Autres sports » : la
+     deuxieme discipline de la veille apres le football, sans tiroir. */
+  {cle: "tir", teinte: 48, nom: "\ud83c\udfaf Tir & pr\u00e9cision",
+   re: /tir [àa] l.arc|tir sportif|ball[- ]?trap|sarbacane|arbal[èe]te|carabine|pistolet|compagnie d.archers|archer/i},
+
+  {cle: "combat", teinte: 6, nom: "\ud83e\udd4b Sports de combat",
+   re: /judo|karat[ée]|\bboxe|\bboxing\b|muay|pugilat|noble art|krav|taekwondo|ju-?jitsu|jiu|\blutte\b|\bmma\b|a[ïi]kido|self[- ]?d[ée]fense|full[- ]?contact|savate|kick[- ]?boxing|grappling|kung[- ]?fu|capoeira|sambo/i},{cle: "ballon", teinte: 32, nom: "\ud83c\udfc0 Ballon & collectif",re: /basket|\bhand\b|handball|rugby|volley|hockey|ultimate/i},
+
+  {cle: "velo", teinte: 168, nom: "\ud83d\udeb4 Vélo",
+   re: /v[ée]lo|\bvtt\b|cyclis|cyclo|\bbmx\b|bicycl/i},
+
+  /* « Multisports », « Omnisports scolaires », les olympiades et les forums
+     d'associations : neuf fiches qui ne sont aucun sport en particulier, et
+     que personne ne retrouvait. Un forum, c'est pourtant vingt clubs a
+     rencontrer en une apres-midi. */
+  /* Le sport adapte est une veille a part : les clubs sont peu nombreux, ils
+     se connaissent tous, et une photo y compte davantage qu'ailleurs. Deux
+     fiches sont arrivees en novembre — « championnat regional para petanque »,
+     « rencontres handipetanques » — et tombaient dans « Autres sports ». */
+  {cle: "handi", teinte: 258, nom: "\u267f Handisport & adapt\u00e9",
+   re: /handisport|handi[- ]?|\bpara[- ]?(?:sport|p[ée]tanque|athl|natation|tennis|badminton|judo|escrime|equitation|tir|cyclisme|ski)|sport adapt[ée]|c[ée]cifoot|torball|boccia|\bfauteuil\b/i},
+
+  {cle: "multi", teinte: 96, nom: "\ud83e\udde9 Multisports & forums",
+   re: /multisports?|omnisports?|olympiades|forum des associations|forum des sports|village des sports|f[êe]te du sport|journ[ée]e des associations/i},
+
+  {cle: "montagne", teinte: 215, nom: "\ud83c\udfbf Montagne & neige",
+   re: /\bski|snow|escalade|alpinis|grimpe|via ferrata|\btrek|biathlon|\bluge\b|randonn[ée]e/i},{cle: "gym", teinte: 322, nom: "\ud83e\udd38 Gym & danse",re: /gymnas|\bgym\b|danse|cheer|twirling|trampoline|acrosport|majorette|patinage|a[ée]robic/i},
+
+  /* Les fetes ou les enfants sont acteurs, separees du carnaval et du corso :
+     ce n'est ni le meme public, ni la meme saison, ni le meme message. Une
+     chasse aux oeufs se demarche en fevrier, un corso en janvier. */
+  {cle: "enfants", teinte: 350, nom: "\ud83c\udf88 F\u00eates d\u2019enfants",
+   re: /halloween|chasse aux ?\u0153ufs|chasse aux ?oeufs|p[èe]re no[ëe]l|arbre de no[ëe]l|go[ûu]ter de no[ëe]l|kermesse|f[êe]te de l.[ée]cole|f[êe]te des [ée]coles|chasse au tr[ée]sor|f[êe]te du jeu|jeune public|centre de loisirs|accueil de loisirs|t[ée]l[ée]thon|bal costum[ée]|f[êe]te des enfants|journ[ée]e des enfants|f[êe]te de la jeunesse|spectacle de no[ëe]l|spectacle de fin d.ann[ée]e|f[êe]te de fin d.ann[ée]e|\baudition\b|remise des? (?:prix|dipl[ôo]mes?)|arbre de no[ëe]l/i},
+
+  {cle: "fetes", teinte: 330, nom: "\ud83c\udf89 F\u00eates & d\u00e9fil\u00e9s",
+   re: /carnaval|corso|d[ée]fil[ée]|cavalcade|kermesse|f[eê]te (?:patronale|des [ée]coles|du village|votive)|brocante|vide[- ]grenier|gala|majorette|bravade/i},{cle: "cheval", teinte: 42, nom: "\ud83d\udc0e Équitation",re: /[ée]quitation|cheval|chevaux|poney|hippique|dressage|attelage|\bcso\b/i},
+
+  /* Tout ce qui a quatre pattes et n'est pas un cheval. La transhumance, les
+     chiens de berger, les rapaces, la ferme pedagogique : le proprietaire de
+     l'animal achete toujours son portrait, et aucun de ces mots n'avait de
+     tiroir. Place apres l'equitation, qui garde le sien. */
+  {cle: "animaux", teinte: 142, nom: "\ud83d\udc3e Animaux & ferme",
+   re: /canin|\bchiens?\b|f[ée]lin|\bchats?\b|avicole|aviculture|colombophilie|apiculture|transhumance|brebis|\bmoutons?\b|b[ée]tail|ferme p[ée]dagogique|\bcomice\b|rapaces?|fauconnerie|alpagas?|\blamas?\b|\b[âa]nes?\b|reptiles?|aquariophilie|agility|canicross|mushing|exposition canine|exposition f[ée]line|hippodrome|courses? hippiques?/i},
+
+  /* Un defile de mode et une election de miss se photographient comme un
+     gala : des candidates sur une scene, une salle pleine de familles et
+     d'amis, et chacun veut l'image de la sienne. C'est le public qui achete
+     le plus surement — il est venu pour une personne en particulier. */
+  {cle: "mode", teinte: 290, nom: "\ud83d\udc57 Défilés & miss",
+   re: /d[ée]fil[ée] de mode|fashion ?show|\bmiss\b|\bmister\b|[ée]lection de miss|concours de beaut[ée]|mannequin|pr[êe]t[- ]?[àa][- ]?porter|haute couture|podium mode/i},
+];
+
+/* L'ordre compte : les engins d'abord — une randonnee quad ou un motocross
+   n'est ni une randonnee ni une course — puis le football, puis les familles
+   dans l'ordre ci-dessus. Ce qui ne rentre nulle part reste dans « Autres ». */
+function familleSport(t){
+  if (estRassemblement(t)) return "autos";
+  if (estFoot(t)) return "foot";
+  const sport = String(t.sport || "").trim();
+  const texte = sport || [t.name, t.categories].join(" ");
+  for (let i = 0; i < FAMILLES_SPORT.length; i++) {
+    if (FAMILLES_SPORT[i].re.test(texte)) return FAMILLES_SPORT[i].cle;
+  }
+  return "divers";
+}
+
+const TIROIRS = [
+  /* Deux questions differentes, donc deux familles. « quel sport » d'abord,
+     parce que c'est le tri que Julien fait dans sa tete en premier ; « quelle
+     distance » ensuite. Huit boutons sur une seule rangee ne se lisaient pas. */
+  /* Un pictogramme devant chaque nom : la rangee se lit sans lire. */
+  {cle: "foot", teinte: 128, nom: "\u26bd Football", famille: "sport", garde: estFoot},
+  {cle: "autos", teinte: 284, nom: "\ud83c\udfc1 Autos & motos", famille: "sport",
+   garde: estRassemblement},
+
+  /* Une famille sans fiche ne s'affiche pas : la rangee suit les saisons
+     toute seule, et ne promet pas de l'aviron en plein mois de janvier. */
+  ...FAMILLES_SPORT.map(f => ({
+    cle: f.cle, nom: f.nom, teinte: f.teinte, famille: "sport", creuxCache: true,
+    garde: t => familleSport(t) === f.cle,
+  })),
+
+  {cle: "divers", teinte: 48, nom: "\ud83c\udfc5 Autres sports", famille: "sport",
+   creuxCache: true, garde: t => familleSport(t) === "divers"},
+
+  {cle: "distance", nom: "À bonne distance", famille: "ou",
+   garde: t => PROCHES.indexOf(String(t.distance_verdict || "").toLowerCase()) >= 0},
+
+  {cle: "journee", nom: "Dans la journée", famille: "ou",
+   garde: t => { const m = minutes(t); return m != null && m <= JOURNEE_MIN; }},
+
+  {cle: "estvar", nom: "Fréjus & Saint-Raphaël", famille: "ou",
+   garde: dansEstVar},
+
+  {cle: "bassins", nom: "Autour d’Hyères", famille: "ou",
+   garde: dansUnBassin},
+
+  {cle: "lyon", nom: "Lyon", famille: "ou", garde: dansLyon},
+
+  {cle: "toulouse", nom: "Toulouse", famille: "ou", garde: dansToulouse},
+
+  /* Les grosses machines, ou qu'elles soient. Trente-deux equipes, c'est
+     environ trois cent cinquante joueurs et autant de familles : ca remplit
+     une journee meme a six heures de route, et ca ne se compare pas a un
+     plateau de quatre equipes a vingt minutes. Ce tiroir ignore donc
+     volontairement la distance — c'est tout son interet. */
+
+  /* La Belgique est un bassin a part : deux heures de Lille, des clubs qui
+     organisent toute l'annee, et un sourceur qui peut y trouver quelqu'un.
+     Elle se noyait dans « Tout » ; elle a maintenant son tiroir. */
+  {cle: "belgique", nom: "🇧🇪 Belgique", famille: "ou",
+   garde: t => /belgique|flandre|wallonie|voetbaltornooien|belgium/i
+     .test([t.source, t.name, t.city, t.venue].map(x => String(x || "")).join(" "))},
+
+  /* Le reste de l'etranger, dans un seul tiroir : Suisse, Luxembourg,
+     Espagne, Italie, Pays-Bas, Portugal. */
+  {cle: "etranger", nom: "🌍 Hors de France", famille: "ou",
+   garde: t => /suisse|luxembourg|espagne|italie|pays-?bas|hollande|portugal|allemagne/i
+     .test([t.source, t.name, t.city].map(x => String(x || "")).join(" "))},
+
+  /* Tout ce qui est hors de sa portee : c'est le travail du sourceur, pas
+     le sien. Range ici pour ne pas encombrer les tiroirs de sa zone. */
+  {cle: "reseau", nom: "🤝 Pour le réseau", famille: "ou",
+   garde: t => String(t.portee || "pour_moi") === "reseau"},
+
+  {cle: "weekend", nom: "\ud83d\udd25 Ce week-end", famille: "quand",
+   garde: ceWeekEnd, creuxCache: true},
+
+  {cle: "date", nom: "Bientôt", famille: "quand", garde: utile},
+
+  /* Les gros plateaux descendent ici. Trente-deux equipes, c'est une journee
+     de travail qui se vend — meme a six heures de route. Ce tiroir ignore
+     donc volontairement la distance, et c'est tout son interet : il n'a rien
+     a faire parmi les lieux, il a sa place parmi les raisons d'y aller. */
+  {cle: "gros", nom: "\ud83c\udfc6 Les gros plateaux", famille: "quand",
+   garde: t => equipes(t) >= 32},
+];
+
+const FAMILLES = [["sport", "Quel sport"], ["ou", "Où"],
+                  ["quand", "\u26a1 Ce qui décide"]];
+
+function majTiroirs(P){
+  if (!P.tiroirs) return;
+  P.tiroirs.innerHTML = "";
+  P.tiroirs.hidden = !P.toutes.length;
+  const rangees = {};
+  FAMILLES.forEach(([cle, titre]) => {
+    const ligne = neud("div", "rangee");
+    ligne.appendChild(neud("span", "rangee-titre", titre));
+    rangees[cle] = ligne;
+    P.tiroirs.appendChild(ligne);
+  });
+  TIROIRS.forEach(t => {
+    const combien = P.toutes.filter(t.garde).length;
+    if (!combien && t.creuxCache && t.cle !== P.tiroir) return;
+    const b = neud("button", "t-" + t.cle + (t.cle === P.tiroir ? " on" : ""));
+    b.type = "button";
+    if (t.teinte != null) {
+      b.style.setProperty("--teinte", t.teinte);
+      b.classList.add("teinte");
+    }
+    b.appendChild(neud("span", "n", String(combien)));
+    /* Le nom porte son pictogramme en tete : on l'en separe pour lui donner
+       sa pastille teintee. « À bonne distance » n'en a pas — le premier mot
+       contient alors une lettre, et rien ne se detache. */
+    const mots = String(t.nom).split(" ");
+    const pied = neud("span", "pied");
+    if (mots.length > 1 && !/\p{L}/u.test(mots[0])) {
+      pied.appendChild(neud("span", "ico", mots.shift()));
+    }
+    pied.appendChild(neud("span", "nom", mots.join(" ")));
+    b.appendChild(pied);
+    b.disabled = !combien;
+    b.addEventListener("click", () => {
+      if (t.cle === P.tiroir) return;
+      P.tiroir = t.cle;
+      try { localStorage.setItem("tiroir-" + P.nom, t.cle); } catch (e) {}
+      P.ouvert = null;
+      appliquerTiroir(P);
+    });
+    (rangees[t.famille] || P.tiroirs).appendChild(b);
+  });
+
+  /* L'ordre, en dessous. Le tiroir choisit la galerie, cette rangee-ci
+     choisit par quel bout on la regarde : les plus gros plateaux d'abord,
+     les plus proches d'abord, ou les prochaines dates d'abord. */
+  const tri = neud("div", "rangee rangee-tri");
+  tri.appendChild(neud("span", "rangee-titre", "Trier par"));
+  TRIS.forEach(x => {
+    const b = neud("button", "tri-" + x.cle + (x.cle === P.tri ? " on" : ""));
+    b.type = "button";
+    b.appendChild(neud("span", "pied", x.nom));
+    b.addEventListener("click", () => {
+      if (x.cle === P.tri) return;
+      P.tri = x.cle;
+      try { localStorage.setItem("tri-" + P.nom, x.cle); } catch (e) {}
+      appliquerTiroir(P);
+    });
+    tri.appendChild(b);
+  });
+  P.tiroirs.appendChild(tri);
+}
+
+function appliquerTiroir(P){
+  const t = TIROIRS.filter(x => x.cle === P.tiroir)[0]
+         || TIROIRS.filter(x => x.cle === "journee")[0]
+         || TIROIRS[TIROIRS.length - 1];
+  /* Le tri choisi a la main passe devant celui du tiroir. « Au mieux » n'en
+     choisit aucun : chaque tiroir garde alors le sien. */
+  const choisi = TRIS.filter(x => x.cle === P.tri)[0];
+  const ordre = (choisi && choisi.fn)
+    || (t.cle === "gros" ? parTaille
+      : t.cle === "weekend" ? parWeekEnd
+      : parValeur);
+  P.fiches = P.toutes.filter(t.garde).slice().sort(ordre);
+  /* Une fiche qu'on vient d'analyser passe devant, quel que soit le tiroir :
+     on ne lit pas une affiche pour se la voir filtrer aussitot. */
+  if (P.epingles && P.epingles.length) {
+    /* Une epinglee deja presente dans le tiroir y restait a sa place dans le
+       tri — donc invisible au milieu de soixante-dix autres. On la retire du
+       corps de la liste avant de la remettre devant : « passe devant » doit
+       vouloir dire devant. */
+    const epingle = {};
+    P.epingles.forEach(cle => epingle[cle] = true);
+    const tete = [];
+    P.epingles.forEach(cle => {
+      const f = P.toutes.filter(x => cleFiche(x) === cle)[0];
+      /* Une fiche epinglee n'echappe pas au tiroir. Elle passait devant
+         PARTOUT : un tournoi de foot qu'on venait d'envoyer tronait en tete
+         du tiroir badminton, de celui de la voile et de tous les autres, et
+         il y restait toute la session sans jamais changer. En changeant de
+         categorie on retrouvait donc les fiches des autres, figees. */
+      if (f && t.garde(f) && recemmentParti(cle)) tete.push(f);
+    });
+    if (tete.length) {
+      P.fiches = tete.concat(P.fiches.filter(f => !epingle[cleFiche(f)]));
+    }
+  }
+  majTiroirs(P);
+  majListe(P);
+}
+
+/* ---------- la grille de cartes ---------- */
+/* Chaque tournoi tient sur une carte : origine, date, distance, equipes,
+   categories, contacts. De quoi decider sans rien ouvrir. La carte qu'on
+   ouvre prend toute la largeur et deroule le message et la carte routiere —
+   le message doit se lire d'un bloc, pas dans une colonne de 300 px. */
+
+function majListe(P){
+  P.liste.innerHTML = "";
+  const vide = $("#" + P.nom + "-vide");
+  if (vide) vide.hidden = !!P.fiches.length;
+  const total = P.toutes.length || P.fiches.length;
+  P.compte.textContent = total + (total > 1 ? " tournois" : " tournoi");
+
+  if (!P.fiches.length) { P.liste.hidden = true; largeurPage(); return; }
+  P.liste.hidden = false;
+
+  if (P.ouvert != null && !P.fiches.some(f => cleFiche(f) === P.ouvert)) P.ouvert = null;
+
+  P.fiches.forEach(t => {
+    const cle = cleFiche(t);
+    const ouverte = cle === P.ouvert;
+    const carte = neud("article", "carte" + (ouverte ? " ouverte" : ""));
+
+    const x = neud("button", "carte-x", "✕");
+    x.type = "button";
+    x.title = "Écarter " + titreFiche(t);
+    x.setAttribute("aria-label", x.title);
+    x.addEventListener("click", ev => { ev.stopPropagation(); ecarter(P, t, x); });
+    carte.appendChild(x);
+
+    /* Ce qui vient de partir le dit, en haut de sa propre carte. Le bandeau
+       de bas d'ecran, lui, etait efface par le rechargement avant d'avoir ete
+       lu. */
+    const parti = PARTIS[cle];
+    if (parti) {
+      carte.classList.add("partie");
+      const band = neud("div", "carte-parti");
+      band.appendChild(neud("b", null, "\u2713 Parti"));
+      if (parti.a) band.appendChild(neud("span", "ou", "\u00e0 " + parti.a));
+      const suite = [];
+      if (parti.range) suite.push("date rang\u00e9e");
+      if (parti.prochaine) {
+        suite.push("relance le " + String(parti.prochaine).slice(8, 10)
+                   + "/" + String(parti.prochaine).slice(5, 7));
+      }
+      if (suite.length) band.appendChild(neud("span", null, "\u00b7 " + suite.join(", ")));
+      carte.appendChild(band);
+    }
+
+    const faits = neud("div", "carte-faits");
+    ficheDom(t, faits);
+    carte.appendChild(faits);
+
+    const barre = neud("div", "carte-barre");
+    const voir = neud("button", "voir" + (ouverte ? " ouvert" : ""),
+                      ouverte ? "Replier" : "Voir le message");
+    voir.type = "button";
+    voir.addEventListener("click", () => {
+      P.ouvert = ouverte ? null : cle;
+      majListe(P);
+      if (!ouverte) {
+        const el = P.liste.querySelector(".carte.ouverte");
+        if (el) el.scrollIntoView({block: "nearest", behavior: "smooth"});
+      }
+    });
+    barre.appendChild(voir);
+
+    /* « Peut-il monter une équipe là-bas ? »
+       Boby est un sourceur de photographes : il sert AVANT qu'on écrive à
+       l'organisateur, pas après. Promettre une couverture à six heures de
+       route sans savoir si quelqu'un peut y aller, c'est prendre un
+       rendez-vous qu'on ne tiendra pas. Le bouton reste petit : on le
+       presse une fois par carte, et seulement pour les dates lointaines. */
+    if (!t.deja_booke) {
+      const q = t.sourceur;
+      const etat = !q ? "" : q.repondu ? (q.possible ? " oui" : " non") : " attente";
+      const bo = neud("button", "boby" + etat,
+        !q ? "→ Boby"
+        : q.repondu ? (q.possible ? "✓ Boby" : "✗ Boby")
+        : "Boby…");
+      bo.type = "button";
+      bo.disabled = !!q;
+      bo.title = !q
+        ? "Envoie cette carte à Boby : il dit s’il peut monter une équipe sur "
+          + "place, avant que vous contactiez l’organisateur"
+        : q.repondu
+          ? (q.possible ? "Équipe possible" + (q.assigned ? " : " + q.assigned : "")
+                        : "Personne sur place")
+          : "Demandé, pas encore de réponse";
+      bo.addEventListener("click", async ev => {
+        ev.stopPropagation();
+        bo.disabled = true;
+        const avant = bo.textContent;
+        bo.textContent = "J’envoie…";
+        try {
+          const r = await api("/api/tournaments/" + t.id + "/sourceur", "POST", {});
+          bo.textContent = "Boby…";
+          bo.className = "boby attente";
+          toast("Envoyé à " + r.a + " — il dit s’il peut monter une équipe");
+        } catch (e) {
+          bo.disabled = false; bo.textContent = avant;
+          toast("Sourceur : " + e.message);
+        }
+      });
+      barre.appendChild(bo);
+    }
+
+    /* La source : l'annonce d'origine, pour vérifier ce que la fiche résume
+       et récupérer ce que l'import n'a pas su lire. */
+    /* Un petit carre a droite, avec le signe « ouvrir ailleurs » : en toutes
+       lettres, le bouton passait a la ligne sous « Voir le message » et
+       pesait autant que lui, alors qu'on s'en sert bien moins souvent. */
+    if (t.url) {
+      const src = neud("button", "source");
+      src.type = "button";
+      src.innerHTML = '<svg viewBox="0 0 16 16" width="16" height="16" fill="none" '
+        + 'stroke="currentColor" stroke-width="1.5" stroke-linecap="round" '
+        + 'stroke-linejoin="round" aria-hidden="true">'
+        + '<path d="M9.5 2.5h4v4M13.5 2.5 7.5 8.5"/>'
+        + '<path d="M12 9.5v3a1 1 0 0 1-1 1H3.5a1 1 0 0 1-1-1V5a1 1 0 0 1 1-1h3"/></svg>';
+      src.setAttribute("aria-label", "Voir la source");
+      src.title = "Voir la source : " + t.url;
+      src.addEventListener("click", ev => {
+        ev.stopPropagation();
+        ouvrirLien(t.url);
+      });
+      barre.appendChild(src);
+    }
+    carte.appendChild(barre);
+
+    if (ouverte) carte.appendChild(corpsCarte(P, t));
+    P.liste.appendChild(carte);
+  });
+  largeurPage();
+}
+
+function cleFiche(t){
+  return "t" + t.id;
+}
+
+/* Les fiches parties pendant cette session, par cle.
+   On garde l'objet lui-meme, pas seulement sa cle : apres l'envoi le serveur
+   range le tournoi en « valide », il ne revient donc plus dans la pile a
+   trancher. Le mecanisme d'epinglage existant va chercher la fiche dans ce
+   que l'API vient de rendre — il ne la trouverait plus. */
+const PARTIS = Object.create(null);
+
+/* Vingt minutes : le temps de voir le bandeau « Parti », de finir la salve
+   en cours, et de passer a autre chose. Au-dela, la fiche cesse d'etre
+   epinglee — elle garde son bandeau si elle reapparait, mais elle ne
+   squatte plus la tete de la liste. */
+const EPINGLE_MINUTES = 20;
+
+function noterParti(t, d){
+  PARTIS[cleFiche(t)] = {
+    fiche: t,
+    a: (d && d.a) || "",
+    range: !!(d && d.range),
+    prochaine: (d && d.prochaine) || null,
+    quand: Date.now()
+  };
+}
+
+function recemmentParti(cle){
+  const p = PARTIS[cle];
+  if (!p) return false;
+  if (!p.quand) return true;          /* note avant cette regle */
+  return (Date.now() - p.quand) < EPINGLE_MINUTES * 60000;
+}
+
+/* Les fiches parties que ce panneau doit garder en tete. Une carte envoyee
+   depuis l'ecran des flyers n'a rien a faire en haut de celui de la veille :
+   on les distingue par leur source, comme le fait aValider(). */
+function partisDe(P){
+  const flyer = P.nom === "flyer";
+  return Object.keys(PARTIS)
+    .map(c => PARTIS[c])
+    .filter(x => (x.fiche.source === "Flyer depose") === flyer)
+    .map(x => x.fiche);
+}
+
+function titreFiche(t){
+  return t.name || t.club_name || "Sans nom";
+}
+
+/* Le message et la carte routiere ne sont batis qu'a l'ouverture : quarante
+   iframes et quarante zones de texte d'avance, c'est une page qui rame. */
+function corpsCarte(P, t){
+  const corps = neud("div", "carte-corps");
+  const split = neud("div", "split");
+
+  const colonne = neud("div", "colonne");
+  const carteRoute = neud("section", "mini");
+  carteRoute.hidden = true;
+  carteRoute.appendChild(entete("Où c'est"));
+  const routeCorps = neud("div");
+  carteRoute.appendChild(routeCorps);
+  colonne.appendChild(carteRoute);
+
+  const aside = neud("aside", "mini");
+  const tete = entete("Message à envoyer");
+  tete.appendChild(neud("span", "mini-qui", t.club_name || ""));
+  aside.appendChild(tete);
+  const msg = neud("div", "mini-corps");
+  const acts = neud("div", "mini-acts");
+  aside.append(msg, acts);
+
+  split.append(aside, colonne);
+  corps.appendChild(split);
+
+  /* L'affiche, quand la fiche en a une. C'est la piece a conviction : elle
+     dit le lieu, l'heure, le prix et le numero, alors que la fiche n'en
+     garde qu'une lecture. Un tournoi de Vedene est deja entre en base comme
+     Vidauban — avec l'image sous les yeux, ca se voit tout de suite. */
+  if (t.affiche) colonne.insertBefore(blocAffiche(t), carteRoute);
+
+  messageDom(P, t, msg, acts);
+  majCarte(P, t, carteRoute, routeCorps);
+  return corps;
+}
+
+function blocAffiche(t){
+  const bloc = neud("section", "mini affiche");
+  bloc.appendChild(entete("L'affiche"));
+  const cadre = neud("div", "affiche-cadre");
+  const img = document.createElement("img");
+  img.src = "/api/affiches/" + t.id;
+  img.alt = "Affiche de " + titreFiche(t);
+  img.loading = "lazy";
+  /* Si le fichier a ete deplace a la main, on retire le bloc plutot que de
+     laisser une image cassee. */
+  img.onerror = () => bloc.remove();
+  const lien = document.createElement("a");
+  lien.href = "/api/affiches/" + t.id;
+  lien.target = "_blank";
+  lien.rel = "noopener";
+  lien.title = "Ouvrir en grand";
+  lien.appendChild(img);
+  cadre.appendChild(lien);
+  bloc.appendChild(cadre);
+  return bloc;
+}
+
+function entete(texte){
+  const h = neud("div", "mini-head");
+  h.appendChild(neud("span", "quoi", texte));
+  return h;
+}
+
+/* La croix ecarte le tournoi : il sort de la liste, mais rien n'est efface.
+   Il reste dans le CRM, marque « ecarte », et la plateforme complete peut le
+   remettre en jeu. */
+async function ecarter(P, t, bouton){
+  bouton.disabled = true;
+  try {
+    await api("/api/tournaments/" + t.id, "PATCH", {validation: "ecarte"});
+  } catch (e) {
+    toast("Impossible : " + e.message);
+    bouton.disabled = false;
+    return;
+  }
+  const cle = cleFiche(t);
+  P.toutes = P.toutes.filter(x => cleFiche(x) !== cle);
+  P.fiches = P.fiches.filter(x => cleFiche(x) !== cle);
+  if (P.ouvert === cle) P.ouvert = null;
+  if (!P.toutes.length) {
+    fermer(P);
+  } else if (P.tiroirs) {
+    appliquerTiroir(P);
+  } else {
+    majListe(P);
+  }
+  toast("Écarté");
+}
+
+/* ---------- ce qu'une carte affiche ---------- */
+
+/* Le sport d'un coup d'oeil. Trente-sept fiches sur deux cent vingt n'ont
+   aucun sport renseigne : on le cherche donc aussi dans le titre et dans la
+   source — « CROSS UNSS » dit la course, « Randos Les Gambettes » la marche,
+   meme quand la colonne sport est vide. */
+const PICTOS_SPORT = [
+  [/futsal|foot\s?[àa]\s?\d|football|\bfoot\b/i, "\u26BD", "Football"],
+  [/basket/i, "\uD83C\uDFC0", "Basket"],
+  [/beach[- ]?volley/i, "\uD83C\uDFD0", "Beach-volley"],
+  [/volley/i, "\uD83C\uDFD0", "Volley"],
+  [/handball|\bhand\b/i, "\uD83E\uDD3E", "Handball"],
+  [/rugby/i, "\uD83C\uDFC9", "Rugby"],
+  [/tennis de table|ping[- ]?pong/i, "\uD83C\uDFD3", "Tennis de table"],
+  [/padel|tennis/i, "\uD83C\uDFBE", "Tennis"],
+  [/badminton/i, "\uD83C\uDFF8", "Badminton"],
+  /* Le sport auto passe AVANT la course a pied : « Course / circuit auto »
+     tombait sur \bcourse\b et affichait un coureur a pied sur sept rallyes
+     et slaloms. Meme logique pour la randonnee, qui attrapait « Sortie »,
+     « Boucle » et « Tour du » — le vocabulaire exact des sorties en voiture
+     ancienne. La randonnee n'est plus une source depuis qu'elle a ete
+     retiree : sa regle ne garde que ses mots a elle. */
+  [/moto|trial|enduro|motocross|drift|karting|\bquad\b|\bssv\b|buggy|\bauto\b|rallye|slalom|vitesse/i,
+   "\uD83C\uDFCD", "Sport auto"],
+  [/aviron|rowing/i, "\uD83D\uDEA3", "Aviron"],
+  [/cross|course [àa] pied|trail|running|marathon|\bcourse\b/i, "\uD83C\uDFC3", "Course"],
+  [/rando|marche nordique|sentier|chemin de/i, "\uD83E\uDD7E", "Randonnée"],
+  [/voile|r[ée]gate|nautique|catamaran|optimist|yacht/i, "\u26F5", "Voile"],
+  [/natation|piscine|aquatique/i, "\uD83C\uDFCA", "Natation"],
+  [/krav|self[- ]?defense|judo|karat[ée]|taekwondo|aikido|lutte|boxe|muay|kick|arts? martia/i,
+   "\uD83E\uDD4B", "Arts martiaux"],
+  [/escalade|grimpe|bloc\b/i, "\uD83E\uDDD7", "Escalade"],
+  [/gym|trampoline/i, "\uD83E\uDD38", "Gymnastique"],
+  [/danse|gala/i, "\uD83D\uDC83", "Danse"],
+  [/[ée]quitation|poney|cheval|hippi/i, "\uD83D\uDC0E", "Équitation"],
+  [/cyclo|\bvtt\b|\bbmx\b|v[ée]lo|cyclisme/i, "\uD83D\uDEB4", "Vélo"],
+  [/p[ée]tanque|boulodrome/i, "\uD83C\uDFB1", "Pétanque"],
+  [/hockey/i, "\uD83C\uDFD1", "Hockey"],
+  [/billard/i, "\uD83C\uDFB1", "Billard"],
+  [/ski|snowboard/i, "\u26F7", "Ski"],
+];
+
+function pictoSport(t){
+  // La colonne sport d'abord — c'est la seule renseignee a la main. Le titre
+  // ensuite, la source en dernier : elle est la moins precise.
+  for (const source of [t.sport, t.name, t.categories, t.source]) {
+    if (!source) continue;
+    for (const [rx, emo, nom] of PICTOS_SPORT) {
+      if (rx.test(source)) return [emo, nom];
+    }
+  }
+  return ["\uD83C\uDFC6", "Sport à préciser"];
+}
+
+function ficheDom(t, box){
+  if (t.source) {
+    box.appendChild(neud("div", "f-source",
+      t.source === "Flyer depose" ? "Flyer déposé" : "Veille · " + t.source));
+  }
+
+  const club = t.club_name || t.name || "Club inconnu";
+  const [emo, nomSport] = pictoSport(t);
+  const titre = neud("div", "f-club");
+  const pic = neud("span", "f-sport", emo);
+  pic.title = nomSport;
+  titre.append(pic, document.createTextNode(club));
+  box.appendChild(titre);
+  if (t.name && t.name !== club) box.appendChild(neud("div", "f-tournoi", t.name));
+
+  /* La date est ce qu'on cherche en premier sur une carte : elle sort du texte
+     gris et devient une pastille lisible de loin. */
+  const ligne = neud("div", "f-quand");
+  const dates = [jour(t.start_date),
+                 t.end_date && t.end_date !== t.start_date ? "au " + jour(t.end_date) : ""]
+                .filter(Boolean).join(" ");
+  if (dates) {
+    const d = neud("span", "f-date", dates);
+    /* Combien de jours : c'est ce qui dit s'il faut s'en occuper maintenant.
+       La date seule oblige a compter de tete. */
+    const reste = t.start_date
+      ? Math.round((new Date(t.start_date + "T12:00:00") - new Date()) / 86400000) : null;
+    if (reste != null && reste >= 0) {
+      const cl = reste <= 7 ? " urgent" : reste <= 30 ? " bientot" : "";
+      d.className = "f-date" + cl;
+      d.appendChild(neud("i", "f-reste",
+        reste === 0 ? "aujourd\u2019hui" : reste === 1 ? "demain" : "J\u2011" + reste));
+    } else if (reste != null) {
+      d.className = "f-date passe";
+    }
+    ligne.appendChild(d);
+  }
+  if (t.city) ligne.appendChild(neud("span", "f-ou", t.city));
+  if (ligne.childNodes.length) box.appendChild(ligne);
+
+  /* Ce qui est DEJA cale ce jour-la, lu dans le calendrier de travail. Sans
+     ce repere, on redige un message pour le 7 novembre, on obtient un oui,
+     et on decouvre la veille qu'on est deja a Draguignan. Cent quatre-vingt-
+     dix fiches sur trois cents tombent un jour deja occupe. */
+  /* Deja dans l'agenda. Sans ce bandeau, la carte du Tournoi de Loriol
+     annonçait « hors zone, 328 km » pour une date booke depuis aout : on
+     ne demarche pas ce qu'on a deja, et la distance n'a plus d'importance. */
+  if (t.deja_booke) {
+    const b = neud("div", "f-booke");
+    b.appendChild(neud("b", null, "\u2713 C\u2019est pour vous"));
+    b.appendChild(neud("span", null,
+      "Dans votre agenda : \u00ab\u00a0" + String(t.deja_booke).slice(0, 48) + "\u00a0\u00bb"));
+    box.appendChild(b);
+  }
+
+  if (t.occupe && t.occupe.length) {
+    const o = neud("div", "f-pris");
+    o.appendChild(neud("b", null, t.occupe.length > 1
+      ? "Déjà " + t.occupe.length + " choses ce jour-là" : "Déjà pris ce jour-là"));
+    t.occupe.slice(0, 3).forEach(x =>
+      o.appendChild(neud("span", null, x.titre.slice(0, 54))));
+    box.appendChild(o);
+  }
+
+  /* La réponse du sourceur, posée juste avant les chiffres : c'est elle qui
+     dit si ça vaut la peine d'écrire. Sans elle, on promet une couverture
+     à six heures de route sans savoir si quelqu'un peut y aller. */
+  if (t.sourceur) {
+    const q = t.sourceur;
+    const s = neud("div", q.possible ? "f-booke" : "f-pris");
+    s.appendChild(neud("b", null, q.repondu
+      ? (q.possible ? "✓ Équipe possible sur place" : "Personne sur place")
+      : "Équipe demandée à " + (q.qui || "au sourceur")));
+    const quand = String(q.updated_at || q.posted_at || "").slice(0, 10);
+    s.appendChild(neud("span", null, q.repondu
+      ? [q.assigned, quand].filter(Boolean).join(" · ")
+      : "en attente de sa réponse" + (quand ? " · depuis le " + quand : "")));
+    box.appendChild(s);
+  }
+
+  /* La distance et le nombre d'equipes cote a cote : les deux chiffres qui
+     decident, l'un du deplacement, l'autre de ce que ca rapporte. */
+  const paves = neud("div", "f-paves");
+
+  const v = (t.distance_verdict || "").toLowerCase();
+  const classe = v.indexOf("hors") === 0 ? "hors"
+               : (v === "loin" ? "loin" : (v === "proche" ? "proche" : "correct"));
+  if (t.distance_km == null) {
+    const d = neud("div", "f-dist inconnu");
+    d.appendChild(neud("div", "f-km", "Distance inconnue"));
+    paves.appendChild(d);
+  } else {
+    const d = neud("div", "f-dist " + classe);
+    d.appendChild(neud("div", "f-km", t.distance_km + " km"));
+    const route = duree(t.trajet_min);
+    d.appendChild(neud("div", "f-min", route || "route inconnue"));
+    d.appendChild(neud("div", "f-verdict", t.distance_verdict || "à vérifier"));
+    paves.appendChild(d);
+  }
+
+  if (t.nb_equipes) {
+    const n = Number(t.nb_equipes);
+    const e = neud("div", "f-equipes connu" + (n >= 24 ? " gros" : ""));
+    e.appendChild(neud("div", "f-nb", String(t.nb_equipes)));
+    e.appendChild(neud("div", "f-unite", Number(t.nb_equipes) === 1 ? "équipe" : "équipes"));
+    paves.appendChild(e);
+  }
+  box.appendChild(paves);
+
+  const cats = String(t.categories || "").split(/[,;·\/]+/).map(x => x.trim()).filter(Boolean);
+  if (cats.length) {
+    const bc = neud("div", "f-bloc");
+    bc.appendChild(neud("div", "f-lab", "Catégories"));
+    const w = neud("div", "f-cats");
+    cats.forEach(c => w.appendChild(neud("span", "f-cat", c)));
+    bc.appendChild(w);
+    box.appendChild(bc);
+  }
+
+  if (t.club_contacte_le || t.relance_le) {
+    const suivi = neud("div", "f-suivi");
+    if (t.club_contacte_le) {
+      suivi.appendChild(neud("span", "f-fait",
+        "Contacté le " + jour(String(t.club_contacte_le).slice(0, 10))));
+    }
+    if (t.relance_le) {
+      const due = String(t.relance_le).slice(0, 10);
+      const enRetard = due <= new Date().toISOString().slice(0, 10);
+      suivi.appendChild(neud("span", "f-fait " + (enRetard ? "loin" : "correct"),
+        (enRetard ? "Relance à faire · " : "Relance le ") + jour(due)));
+    }
+    box.appendChild(suivi);
+  }
+
+  /* Pourquoi cette fiche est la ou elle est. Le classement ne se fait plus sur
+     la seule distance mais sur ce que la fiche peut rapporter — du monde,
+     atteignable, encore dans les temps. Un classement qu'on ne peut pas
+     expliquer, on ne s'y fie pas : la carte dit donc ce qui l'a emporte. */
+  if (t.valeur_dit) {
+    const pq = neud("div", "f-faits");
+    pq.appendChild(neud("span", "f-fait pourquoi", t.valeur_dit));
+    box.appendChild(pq);
+  }
+
+  const autres = [];
+  if (!t.nb_equipes) autres.push("équipes non précisées");
+  if (t.sport) autres.push(t.sport);
+  if (t.venue && t.venue !== t.city) autres.push(t.venue);
+  const tel = (t.draft && t.draft.contact_phone) || t.club_phone;
+  if (tel) autres.push(tel);
+  /* to_addr porte le NUMERO quand le canal est WhatsApp : le mettre dans la
+     case « mail » affichait le telephone deux fois de suite sur la carte. On
+     ne retient donc ici que ce qui est vraiment une adresse. */
+  const brut = (t.draft && (t.draft.to_addr || t.draft.contact_email)) || t.club_email;
+  const mail = adresseMail(brut);
+  if (mail && mail !== tel) autres.push(mail);
+  if (t.club_site) autres.push(String(t.club_site).replace(/^https?:\/\/(www\.)?/, ""));
+  if (autres.length) {
+    const w = neud("div", "f-faits");
+    autres.forEach(a => w.appendChild(neud("span", "f-fait", a)));
+    box.appendChild(w);
+  }
+}
+
+/* 200 minutes ne parlent a personne : on ecrit 3 h 20. */
+function duree(min){
+  const m = Math.round(Number(min) || 0);
+  if (m <= 0) return "";
+  if (m < 60) return m + " min";
+  const h = Math.floor(m / 60), r = m % 60;
+  return r ? h + " h " + (r < 10 ? "0" + r : r) : h + " h";
+}
+
+/* Le message se lit d'un bloc : la zone prend la hauteur de son texte. */
+function ajuster(ta){
+  ta.style.height = "auto";
+  ta.style.height = ta.scrollHeight + "px";
+}
+
+/* Un numero francais utilisable par wa.me : chiffres seuls, 0 initial -> 33. */
+function numeroWa(tel){
+  const brut = String(tel || "").replace(/\D/g, "").replace(/^00/, "");
+  /* Un +377 est deja complet : lui appliquer la regle francaise du 0 initial
+     n'a pas de sens. */
+  const n = /^377/.test(brut) ? brut : brut.replace(/^0/, "33");
+  return n.length >= 10 ? n : "";
+}
+
+/* Le plan de numerotation dit, avant le clic, si WhatsApp a une chance.
+   En France : 06 et 07 sont des mobiles, 01 a 05 et 09 des fixes.
+   A Monaco : huit chiffres apres +377, les fixes commencent par 9, les
+   mobiles par 6 (et 4). Ce n'est pas un detail ici — sur les quatre-vingt-onze
+   clubs monegasques de la base, QUARANTE-CINQ numeros commencent par +377 9 :
+   ce sont des lignes fixes, WhatsApp n'y arrivera jamais. Seuls quatre sont
+   des mobiles. On le dit donc, au lieu de laisser ouvrir une conversation
+   qui n'existera pas. Pour les autres pays on n'affirme rien. */
+function estFixe(tel){
+  const brut = String(tel || "").replace(/\D/g, "").replace(/^00/, "");
+  if (/^377/.test(brut)) return /^3779/.test(brut) && brut.length === 11;
+  const n = brut.replace(/^0/, "33");
+  return /^33[1-59]/.test(n) && n.length === 11;
+}
+/* L'ancien nom, garde pour ne rien casser ailleurs. */
+const estFixeFr = estFixe;
+
+/* Un club sur deux ne publie qu'une adresse mail. Le champ de secours
+   n'acceptait que des chiffres : coller « contact@club.fr » repondait
+   « il manque des chiffres pour en faire un numero » et laissait le bouton
+   d'envoi eteint, sans jamais dire ou aller. On reconnait donc les deux. */
+function adresseMail(v){
+  const m = String(v || "").trim().replace(/^mailto:/i, "");
+  return /^[^\s@,;]+@[^\s@,;]+\.[a-z]{2,}$/i.test(m) ? m : "";
+}
+
+/* L'objet du mail : celui du brouillon s'il en a un, sinon le tournoi. */
+function sujetMail(t){
+  const dr = t.draft || {};
+  return dr.subject || ("SnapActions \u2014 " + (t.name || "votre tournoi"));
+}
+
+/* Le corps part dans un mailto:, qui ne transporte aucune piece jointe — ni
+   pour le mail ni pour WhatsApp. Le bouton Plaquette met le FICHIER dans le
+   presse-papiers : un Cmd+V dans Mail l'attache comme dans WhatsApp. */
+function ouvrirMail(adresse, sujet, corps){
+  /* L'adresse ne s'encode pas : dans un mailto: elle tient lieu de chemin,
+     « a%40b.fr » fait tiquer certains logiciels de mail, et un « + » encode
+     y deviendrait une espace. Seuls l'objet et le corps sont encodes. */
+  const lien = "mailto:" + String(adresse).trim()
+    + "?subject=" + encodeURIComponent(sujet)
+    + "&body=" + encodeURIComponent(corps);
+  /* Le serveur ouvre le logiciel de mail du Mac. Un mailto: passe a Chrome
+     n'irait nulle part — et window.open() sur un mailto: se fait souvent
+     bloquer. Si le serveur ne repond pas, location.href reste le chemin le
+     plus sur : le navigateur le remet au systeme. */
+  fetch("/api/ouvrir", {
+    method: "POST",
+    headers: {"Content-Type": "application/json"},
+    body: JSON.stringify({url: lien}),
+  }).then(r => { if (!r.ok) throw new Error("refus"); })
+    .catch(() => { location.href = lien; });
+}
+
+function messageDom(P, t, corps, acts){
+  const dr = t.draft;
+  if (!dr || !dr.body) {
+    /* Deux cas bien differents : soit on sait qui organise et on lui ecrit,
+       soit la source ne l'a pas publie et il faut aller le chercher. */
+    if (t.club_id) {
+      /* Le message s'ecrit a l'ouverture de la fiche, sans etre enregistre :
+         pre-rediger pour les 189 fiches remplissait la pile de relecture, et
+         ne rediger que pour celles qui entrent dans la fenetre de contact en
+         laissait 172 muettes. Il ne devient un brouillon que si Julien s'en
+         sert. */
+      const attente = neud("p", "mini-vide", "Je rédige…");
+      corps.appendChild(attente);
+      api("/api/tournaments/" + t.id + "/message").then(m => {
+        attente.remove();
+        t.draft = {body: m.corps, subject: m.objet, channel: m.canal,
+                   to_addr: m.destinataire, id: m.draft_id, a_ecrire: !m.enregistre};
+        corps.innerHTML = ""; acts.innerHTML = "";
+        messageDom(P, t, corps, acts);
+      }).catch(e => {
+        attente.textContent = "Message impossible : " + e.message;
+      });
+      return;
+    } else {
+      corps.appendChild(neud("p", "mini-vide",
+        "La source ne dit pas qui organise ce tournoi. Trouve le club, "
+        + "et le message se rédige tout seul."));
+      /* On lancait le moteur dans Chrome et Julien recopiait a la main. Le
+         serveur fait maintenant les deux passes — qui organise, puis les
+         coordonnees de ce club — et rapporte ce qui figure vraiment sur les
+         pages. Les numeros sont extraits du texte, jamais ecrits par un
+         modele : un numero invente ne se distingue pas d'un vrai. */
+      const cherche = neud("button", "primary", "Chercher l'organisateur");
+      cherche.type = "button";
+      const resultat = neud("div", "fouille");
+      cherche.addEventListener("click", async () => {
+        cherche.disabled = true;
+        cherche.textContent = "Recherche sur le web\u2026";
+        resultat.innerHTML = "";
+        try {
+          const d = await api("/api/tournaments/" + t.id + "/chercher-web", "POST", {});
+          dessinerFouille(t, d, resultat, acts);
+        } catch (e) {
+          resultat.textContent = "Recherche impossible : " + (e.message || "");
+        }
+        cherche.disabled = false;
+        cherche.textContent = "Chercher encore";
+      });
+      acts.appendChild(cherche);
+
+      const manuel = neud("button", "plain", "Ouvrir Google");
+      manuel.type = "button";
+      manuel.addEventListener("click", () => {
+        const q = [(t.name || ""), t.city || "", "club organisateur contact"]
+          .filter(Boolean).join(" ");
+        ouvrirLien("https://www.google.com/search?q=" + encodeURIComponent(q));
+      });
+      acts.appendChild(manuel);
+      corps.appendChild(resultat);
+      saisieClub(t, acts);
+    }
+
+    if (t.url) {
+      const voir = neud("button", "plain", "Voir l'annonce");
+      voir.type = "button";
+      voir.addEventListener("click", () => ouvrirLien(t.url));
+      acts.appendChild(voir);
+    }
+    return;
+  }
+
+  const ta = document.createElement("textarea");
+  ta.value = dr.body;
+  ta.spellcheck = false;
+  ta.rows = 1;
+  ta.setAttribute("aria-label", "Message à envoyer");
+  ta.addEventListener("input", () => ajuster(ta));
+  corps.appendChild(ta);
+  ajuster(ta);
+  requestAnimationFrame(() => ajuster(ta));
+  suivreLargeur(corps, ta);
+
+  /* Pas de barre de reformulation ici : le message du Reperage est deja
+     taille pour le tournoi — il connait la date, la categorie, le public.
+     La barre sert la ou le texte part d'un modele general. La case reste
+     modifiable a la main, comme partout. */
+  ta.id = "mot-net-" + t.id;
+
+  const tel = dr.contact_phone || t.club_phone;
+  /* to_addr porte le destinataire du brouillon : une adresse quand le canal
+     est le mail, un NUMERO quand c'est WhatsApp. Sans ce filtre, le bouton
+     d'envoi par mail affichait « Envoyer a +33638239000 ». */
+  const estMail = v => String(v || "").indexOf("@") > 0;
+  const dest = [dr.to_addr, dr.contact_email, t.club_email].filter(estMail)[0] || "";
+  const num = numeroWa(tel);
+
+  /* Un fixe n'est pas un canal WhatsApp. L'avertissement ne tenait que dans
+     une infobulle — invisible a la souris comme au doigt : on cliquait, la
+     conversation s'ouvrait vide, et on ne comprenait pas pourquoi. Le bouton
+     le dit maintenant sur lui-meme, et cesse d'etre le geste principal :
+     c'est le mail qui prend la main, parce que c'est lui qui arrivera. */
+  const fixe = !!num && estFixe(tel);
+  /* Plus de bouton « Ouvrir dans WhatsApp » : il faisait doublon avec
+     l'envoi direct juste a cote, et on ne savait plus lequel envoyait. Un
+     fixe, lui, merite toujours son avertissement. */
+  if (fixe) {
+    const dit = neud("div", "f-pris");
+    dit.appendChild(neud("b", null, "Ligne fixe"));
+    dit.appendChild(neud("span", null,
+      tel + " : WhatsApp n\u2019y passera pas. Passez par le mail, "
+      + "ou cherchez un portable ci-dessous."));
+    acts.appendChild(dit);
+  }
+
+  /* Les boutons qui envoient vraiment, les memes que sur les autres ecrans.
+     Pas de « C'est envoye » ici : il faisait doublon avec « Je l'ai envoye »
+     plus bas, qui en fait davantage. Et l'envoi range desormais la carte tout
+     seul — on ne clique plus apres avoir clique. */
+  if (window.Envoyer) {
+    Envoyer.poser(acts, {club_id: t.club_id, tel: tel, email: dest,
+                         objet: dr.subject || "", draft_id: dr.id,
+                         tournament_id: t.id, note: false,
+                         onEnvoi: d => { noterParti(t, d); aValider(); },
+                         texte: () => ta.value});
+  }
+
+  const cp = neud("button", "geste");
+  cp.innerHTML = '<span class="ico">\u2398</span><span>Copier le texte</span>';
+  cp.addEventListener("click", () => copier(ta.value));
+  acts.appendChild(cp);
+
+  /* Le mail est un canal a part entiere, pas une option de repli. Il n'etait
+     affiche que si une adresse figurait DEJA en fiche : sur un club qu'on
+     vient de decouvrir — le cas de presque toutes les annonces — le bouton
+     n'existait tout simplement pas, et rien ne disait ou aller. Il est donc
+     toujours la, a cote de WhatsApp. S'il manque l'adresse, il la demande au
+     lieu de disparaitre.
+     Il reste gris tant que WhatsApp est possible, et devient le bouton
+     d'envoi bleu quand il est le seul chemin. */
+  const parMail = !num || fixe;
+  const m = neud("button", parMail ? "geste maitre mail" : "geste");
+  m.innerHTML = '<span class="ico">\u2709</span><span>'
+    + (parMail ? "Envoyer par mail" : "Par mail") + '</span>';
+  m.title = dest
+    ? "Ouvre votre logiciel de mail \u2014 \u00e0 " + dest
+    : "Ouvre votre logiciel de mail \u2014 collez l\u2019adresse d\u2019abord";
+  m.addEventListener("click", () => {
+    /* L'adresse connue d'abord ; sinon celle que Julien vient de coller dans
+       le champ plus bas, qui est renseigne apres ce bouton. */
+    const champ = acts.querySelector(".saisie-tel input");
+    const adresse = adresseMail(dest) || adresseMail(champ && champ.value);
+    if (!adresse) {
+      toast("Aucune adresse mail connue \u2014 collez-la dans le champ ci-dessous");
+      if (champ) {
+        champ.placeholder = "contact@club.fr";
+        champ.focus();
+        champ.scrollIntoView({block: "center", behavior: "smooth"});
+      }
+      return;
+    }
+    ouvrirMail(adresse, sujetMail(t), ta.value);
+    toast("Mail ouvert \u2014 relisez-le, et joignez la plaquette avant d\u2019envoyer");
+  });
+  acts.appendChild(m);
+
+  /* La plaquette. Un lien wa.me ne transporte que du texte : aucune piece
+     jointe ne part avec, c'est une limite de WhatsApp, pas du CRM. Ce que le
+     Mac sait faire, en revanche, c'est mettre le FICHIER dans le presse-
+     papiers. Un Cmd+V dans la conversation et le PDF est attache. */
+  const pq = neud("button", "geste piece");
+  pq.innerHTML = '<span class="ico">\u{1F4CE}</span><span>Plaquette</span>';
+  pq.title = "Puis Cmd+V dans WhatsApp ou dans le mail : le PDF s\u2019attache";
+  pq.addEventListener("click", async () => {
+    pq.disabled = true;
+    const avant = pq.querySelector("span:last-child").textContent;
+    try {
+      await api("/api/plaquette/copier", "POST", {});
+      pq.querySelector("span:last-child").textContent = "Prête — Cmd+V";
+      toast("Plaquette dans le presse-papiers : collez-la dans la conversation");
+      setTimeout(() => { pq.querySelector("span:last-child").textContent = avant; }, 4000);
+    } catch (e) { toast("Plaquette : " + e.message); }
+    pq.disabled = false;
+  });
+  acts.appendChild(pq);
+
+  /* Les planches de photos, que Julien envoie juste apres la plaquette.
+     Meme mecanique : macOS sait mettre plusieurs fichiers dans le presse-
+     papiers, WhatsApp accepte de les coller ensemble. */
+  const ph = neud("button", "geste piece");
+  ph.innerHTML = '<span class="ico">\u{1F5BC}</span><span>Photos</span>';
+  ph.title = "Les planches d\u2019exemple, puis Cmd+V dans WhatsApp ou dans le mail";
+  ph.addEventListener("click", async () => {
+    ph.disabled = true;
+    const avant = ph.textContent;
+    try {
+      const r = await api("/api/photos/copier", "POST", {sport: t.sport || ""});
+      const quoi = r.serie ? (r.n + " photos " + r.serie) : (r.n + " photos");
+      ph.querySelector("span:last-child").textContent = quoi + " — Cmd+V";
+      /* Un pack vide ne refuse rien : il laisse partir les photos par
+         défaut à sa place. Sans ce mot, on croit envoyer des planches
+         d’aviron à un club d’aviron alors que partent trois photos de foot. */
+      toast(r.dossier_vide
+        ? "⚠ pack « " + r.dossier_vide + " » vide — ce sont les " + r.n
+          + " photos par défaut qui sont dans le presse-papiers"
+        : quoi + " dans le presse-papiers");
+      setTimeout(() => { ph.querySelector("span:last-child").textContent = avant; }, 4000);
+    } catch (e) { toast("Photos : " + e.message); }
+    ph.disabled = false;
+  });
+  acts.appendChild(ph);
+
+  bloquerDeja(P, t, acts, ta);
+
+  /* La recherche de contact etait reservee aux fiches sans numero. Mais un
+     numero en base n'est pas un numero joignable : la Societe Nautique de
+     Monaco porte un +377 92, un fixe, sur lequel WhatsApp ne passera pas —
+     et la fiche n'offrait alors aucun moyen d'en chercher un autre. Le
+     bouton reste donc toujours la. */
+  {
+    /* On va LIRE les coordonnees sur les pages du club plutot que d'ouvrir
+       une recherche et de laisser Julien fouiller. Pas d'IA : un modele de
+       langue invente un numero plausible quand il ne sait pas, et un numero
+       plausible ne se distingue pas d'un vrai. Ici, chaque chiffre affiche
+       vient d'une page qu'on nomme. */
+    const cherche = neud("button", "geste trouver");
+    cherche.innerHTML = '<span class="ico">\u{1F50E}</span><span>Trouver le contact</span>';
+    cherche.title = "Lit le téléphone et le mail sur le site du club";
+    cherche.addEventListener("click", async () => {
+      cherche.disabled = true;
+      cherche.querySelector("span:last-child").textContent = "Je cherche\u2026";
+      const vieux = acts.querySelector(".trouvailles");
+      if (vieux) vieux.remove();
+      try {
+        const r = await api("/api/tournaments/" + t.id + "/chercher-contact", "POST", {});
+        acts.appendChild(trouvailles(t, r, ta, acts));
+      } catch (e) { toast("Échec : " + e.message); }
+      cherche.disabled = false;
+      cherche.querySelector("span:last-child").textContent = "Trouver le contact";
+    });
+    acts.appendChild(cherche);
+
+    const google = neud("button", "geste discret");
+    google.innerHTML = '<span class="ico">\u{1F310}</span><span>Google</span>';
+    google.addEventListener("click", () => {
+      const q = ['"' + (t.club_name || t.name || "") + '"', t.city || "",
+                 "téléphone contact"].filter(Boolean).join(" ");
+      ouvrirLien("https://www.google.com/search?q=" + encodeURIComponent(q));
+    });
+    acts.appendChild(google);
+
+    if (t.club_site) {
+      const site = neud("button", "link", "Page du club");
+      site.title = t.club_site;
+      site.addEventListener("click", () => ouvrirLien(t.club_site));
+      acts.appendChild(site);
+    }
+
+    acts.appendChild(neud("p", "mini-note",
+      num && estFixeFr(tel)
+        ? tel + " est un numéro fixe : WhatsApp n’y passera sans doute pas. "
+          + "Cherchez un portable ou une adresse mail."
+      : num ? "Pas joignable sur ce numéro ? Cherchez-en un autre, ou une adresse mail."
+      : tel ? "Numéro inexploitable pour WhatsApp : " + tel + " — ou collez une adresse mail."
+      : "Pas de numéro trouvé — collez ici un numéro ou une adresse mail."));
+    /* Le champ ne reprend le numero connu que s'il est inutilisable — c'est
+       alors celui qu'on corrige. Quand il marche, le champ reste vide : il
+       sert a en saisir un AUTRE. */
+    saisieTel(t, acts, ta, num ? "" : tel);
+  }
+}
+
+/* Ce qu'on a lu, et ou. Chaque ligne dit sa page : Julien peut verifier avant
+   de retenir un numero, ce qu'aucune reponse d'IA ne permettrait. */
+function trouvailles(t, r, ta, acts){
+  const box = neud("div", "trouvailles");
+  const tels = (r.trouves || []).filter(x => x.numero);
+  const mails = (r.trouves || []).filter(x => x.email);
+
+  if (!tels.length && !mails.length) {
+    const lues = (r.vues || []).filter(v => v.lue).length;
+    box.appendChild(neud("p", "mini-note",
+      lues ? "Rien trouvé sur " + lues + " page(s) lue(s). Essaie Google."
+           : "Aucune page lisible — le club n\u2019a pas de site connu."));
+    (r.vues || []).forEach(v => {
+      const a = neud("button", "link", v.dit + (v.lue ? "" : " (illisible)"));
+      a.title = v.url;
+      a.addEventListener("click", () => ouvrirLien(v.url));
+      box.appendChild(a);
+    });
+    return box;
+  }
+
+  /* Les numeros retenus. Cliquer en coche un de plus au lieu d'ecraser le
+     precedent : deux numeros sur une page, ce sont souvent deux personnes. */
+  const retenus = [];
+  const barre = neud("div", "lot");
+  barre.hidden = true;
+
+  function majBarre(){
+    barre.innerHTML = "";
+    if (!retenus.length) { barre.hidden = true; return; }
+    barre.hidden = false;
+    /* Les fixes ne portent pas WhatsApp. Le bouton de la carte le disait
+       deja ; cette barre-ci l'ignorait, et proposait « Ecrire aux 2 » pour
+       deux 04 — deux conversations vides a la suite. Le Centre Nautique de
+       Bauduen publie justement un 04 et un 09, et rien d'autre. */
+    const fixes = retenus.filter(r => estFixe(r.numero || r.format));
+    const joignables = retenus.filter(r => !estFixe(r.numero || r.format));
+    const d = neud("span", "dit", retenus.length === 1
+      ? "1 numéro retenu : " + retenus[0].format
+      : retenus.length + " numéros retenus : "
+        + retenus.map(r => r.format).join(" et "));
+    barre.appendChild(d);
+
+    if (joignables.length) {
+      const go = neud("button", null, joignables.length > 1
+        ? "Écrire aux " + joignables.length : "Écrire");
+      go.type = "button";
+      go.addEventListener("click", () => enchainer(joignables.slice(), 0));
+      barre.appendChild(go);
+    }
+    if (fixes.length) {
+      barre.appendChild(neud("span", "dit",
+        (fixes.length === retenus.length
+          ? (fixes.length > 1 ? "Ce sont des lignes fixes" : "C’est une ligne fixe")
+          : (fixes.length > 1 ? fixes.length + " sont des lignes fixes"
+                              : fixes[0].format + " est une ligne fixe"))
+        + " : WhatsApp n’y passera pas. Appelez, ou cherchez une adresse mail."));
+      const tel = neud("button", "plain", "Appeler " + fixes[0].format);
+      tel.type = "button";
+      tel.addEventListener("click", () => ouvrirLien("tel:" + fixes[0].numero));
+      barre.appendChild(tel);
+    }
+    const raz = neud("button", "plain", "Vider");
+    raz.type = "button";
+    raz.addEventListener("click", () => {
+      retenus.length = 0;
+      box.querySelectorAll(".trouve.pris").forEach(e => e.classList.remove("pris"));
+      majBarre();
+    });
+    barre.appendChild(raz);
+  }
+
+  /* WhatsApp n'ouvre qu'une conversation a la fois : lancer les deux d'un coup
+     ferait que la seconde remplace la premiere avant qu'on ait envoye. On les
+     enchaine donc, et la barre dit laquelle vient ensuite. */
+  function enchainer(liste, i){
+    if (i >= liste.length) { toast("Tous les numéros ont été ouverts"); majBarre(); return; }
+    const x = liste[i];
+    const num = numeroWa(x.numero || x.format);
+    if (!num) { enchainer(liste, i + 1); return; }
+    barre.innerHTML = "";
+    const dit = neud("span", "dit", "Envoi à " + x.format + "…");
+    barre.appendChild(dit);
+    if (window.Envoyer) {
+      Envoyer.direct({tel: x.numero || x.format, corps: ta.value,
+                      club_id: t.club_id, tournament_id: t.id})
+        .then(d => {
+          dit.textContent = d ? ("✓ Parti à " + x.format)
+                              : ("Échec sur " + x.format + " — essayez le suivant");
+        });
+    } else {
+      ouvrirLien("https://wa.me/" + num + "?text=" + encodeURIComponent(ta.value));
+      dit.textContent = "WhatsApp ouvert sur " + x.format + ".";
+    }
+    if (i + 1 < liste.length) {
+      const suite = neud("button", null, "Ensuite : " + liste[i + 1].format);
+      suite.type = "button";
+      suite.addEventListener("click", () => enchainer(liste, i + 1));
+      barre.appendChild(suite);
+    } else {
+      const fin = neud("button", "plain", "Terminé");
+      fin.type = "button";
+      fin.addEventListener("click", majBarre);
+      barre.appendChild(fin);
+    }
+  }
+
+  if (tels.length) {
+    box.appendChild(neud("p", "mini-note", tels.length > 1
+      ? "Numéros lus sur leurs pages — cliquez-en un ou plusieurs :"
+      : "Numéro lu sur leur page :"));
+    tels.forEach(x => {
+      const b = neud("button", "trouve" + (x.mobile ? " mobile" : ""));
+      b.type = "button";
+      b.appendChild(neud("b", null, x.format));
+      b.appendChild(neud("span", null, (x.mobile ? "mobile · " : "fixe · ") + x.source));
+      b.title = "Lu sur " + x.page;
+      b.addEventListener("click", () => {
+        const i = retenus.indexOf(x);
+        if (i >= 0) { retenus.splice(i, 1); b.classList.remove("pris"); }
+        else { retenus.push(x); b.classList.add("pris"); }
+        const champ = acts.querySelector("input[type=tel], .mini-tel input");
+        if (champ && retenus.length) {
+          champ.value = retenus[0].format;
+          champ.dispatchEvent(new Event("input"));
+        }
+        majBarre();
+      });
+      box.appendChild(b);
+    });
+    box.appendChild(barre);
+  }
+
+  if (mails.length) {
+    /* Un mail, lui, accepte plusieurs destinataires d'un coup : pas besoin
+       d'enchainer comme pour WhatsApp, les deux adresses tiennent dans le
+       meme message. */
+    const prisM = [];
+    const barreM = neud("div", "lot");
+    barreM.hidden = true;
+
+    function majMails(){
+      barreM.innerHTML = "";
+      if (!prisM.length) { barreM.hidden = true; return; }
+      barreM.hidden = false;
+      barreM.appendChild(neud("span", "dit", prisM.length === 1
+        ? "1 adresse retenue" : prisM.length + " adresses, un seul message"));
+      const go = neud("button", null, prisM.length > 1
+        ? "Écrire aux " + prisM.length : "Écrire");
+      go.type = "button";
+      go.addEventListener("click", async () => {
+        ouvrirMail(prisM.map(x => x.email).join(","), sujetMail(t), ta.value);
+        toast("Mail ouvert — la plaquette reste à joindre");
+        /* L'adresse lue sur leur page est retenue : sans ca, il fallait
+           relancer la recherche a chaque ouverture de la fiche. */
+        if (t.club_id) {
+          try { await api("/api/clubs/" + t.club_id, "PATCH", {email: prisM[0].email}); }
+          catch (e) { /* l'envoi prime sur l'enregistrement */ }
+        }
+      });
+      barreM.appendChild(go);
+    }
+
+    box.appendChild(neud("p", "mini-note", mails.length > 1
+      ? "Adresses mail lues — cliquez-en une ou plusieurs :"
+      : "Adresse mail lue :"));
+    mails.forEach(x => {
+      const b = neud("button", "trouve mail");
+      b.type = "button";
+      b.appendChild(neud("b", null, x.email));
+      b.appendChild(neud("span", null, x.source));
+      b.title = "Lu sur " + x.page;
+      b.addEventListener("click", () => {
+        const i = prisM.indexOf(x);
+        if (i >= 0) { prisM.splice(i, 1); b.classList.remove("pris"); }
+        else { prisM.push(x); b.classList.add("pris"); }
+        majMails();
+      });
+      box.appendChild(b);
+    });
+    box.appendChild(barreM);
+  }
+  return box;
+}
+
+/* Le club trouve a la main : on le cree, on le rattache, et le message part
+   dans la foulee. C'est le chemin le plus court entre « la source ne dit rien »
+   et un message pret a envoyer. */
+/* Ce que la recherche a rapporte : le club qu'elle nomme, et les coordonnees
+   relevees page par page, avec la page ou elles figurent. On clique pour
+   remplir — rien n'est enregistre sans geste. */
+function dessinerFouille(t, d, boite, acts){
+  boite.innerHTML = "";
+  if (d.organisateur) {
+    const l = neud("p", "fouille-club");
+    l.appendChild(neud("b", null, d.organisateur));
+    const prendre = neud("button", "mini", "C\u2019est lui");
+    prendre.type = "button";
+    prendre.addEventListener("click", () => {
+      const champ = acts.parentNode.querySelector("input[data-club-nom]")
+        || document.querySelector("input[data-club-nom]");
+      if (champ) { champ.value = d.organisateur; champ.focus(); }
+      else toast("Nom copi\u00e9 : " + d.organisateur);
+    });
+    l.appendChild(prendre);
+    boite.appendChild(l);
+  } else {
+    boite.appendChild(neud("p", "mini-vide",
+      "Le moteur ne dit pas qui organise. Essayez « Ouvrir Google »."));
+  }
+
+  const tels = (d.trouves || []).filter(x => x.numero);
+  const mails = (d.trouves || []).filter(x => x.email);
+  if (!tels.length && !mails.length) {
+    boite.appendChild(neud("p", "mini-vide",
+      "Aucun num\u00e9ro ni mail sur les pages lues."));
+    return;
+  }
+  const ul = neud("div", "fouille-liste");
+  tels.concat(mails).slice(0, 8).forEach(x => {
+    const ligne = neud("div", "fouille-ligne");
+    ligne.appendChild(neud("b", null, x.format || x.email));
+    if (x.mobile) ligne.appendChild(neud("span", "fouille-tag", "portable"));
+    ligne.appendChild(neud("span", "fouille-ou", x.source || ""));
+    const cop = neud("button", "mini", "Copier");
+    cop.type = "button";
+    cop.addEventListener("click", async () => {
+      try { await navigator.clipboard.writeText(x.numero || x.email);
+            toast("Copi\u00e9"); } catch (e) { toast("Copie refus\u00e9e"); }
+    });
+    ligne.appendChild(cop);
+    const page = neud("button", "mini", "La page");
+    page.type = "button";
+    page.addEventListener("click", () => ouvrirLien(x.page));
+    ligne.appendChild(page);
+    ul.appendChild(ligne);
+  });
+  boite.appendChild(ul);
+}
+
+function saisieClub(t, acts){
+  const boite = neud("div", "saisie-tel");
+  const nom = document.createElement("input");
+  nom.type = "text";
+  nom.placeholder = "Nom du club organisateur";
+  nom.setAttribute("aria-label", "Nom du club organisateur");
+  nom.dataset.clubNom = "1";   // la recherche web remplit ce champ
+  const joindre = document.createElement("input");
+  joindre.type = "text";
+  joindre.placeholder = "Téléphone ou email (facultatif)";
+  joindre.setAttribute("aria-label", "Téléphone ou email");
+  joindre.dataset.clubTel = "1";
+
+  const ok = neud("button", "plain", "Rattacher");
+  ok.type = "button";
+  const dit = neud("p", "saisie-mot", "");
+
+  ok.addEventListener("click", async () => {
+    const n = nom.value.trim();
+    if (!n) { dit.textContent = "Il faut au moins le nom du club."; return; }
+    ok.disabled = true; ok.textContent = "J'enregistre…";
+    const contact = joindre.value.trim();
+    try {
+      const club = await api("/api/clubs", "POST", {
+        name: n, sport: t.sport || "Football", city: t.city, postal_code: t.postal_code,
+        email: contact.indexOf("@") > 0 ? contact : null,
+        phone: contact.indexOf("@") > 0 ? null : (contact || null),
+        source: t.source, status: "prospect",
+      });
+      await api("/api/tournaments/" + t.id, "PATCH", {club_id: club.id, organizer: n});
+      await api("/api/tournaments/" + t.id + "/brouillon-organisateur", "POST", {});
+      toast("Club rattaché, message prêt");
+      await aValider();
+    } catch (e) {
+      dit.textContent = "Échec : " + e.message;
+      ok.disabled = false; ok.textContent = "Rattacher";
+    }
+  });
+
+  boite.append(nom, joindre, ok, dit);
+  acts.appendChild(boite);
+}
+
+/* Pas de numero : on colle ici ce qu'on a trouve. Numero OU adresse mail —
+   beaucoup de clubs ne publient que la seconde, et le champ ne prenait que
+   des chiffres : l'adresse recopiee a la main se faisait repondre « il manque
+   des chiffres » sans qu'aucun bouton n'ouvre jamais le mail.
+   S'il y a un club en base, on l'y enregistre : la fois d'avant ne doit pas
+   etre a refaire. */
+function saisieTel(t, acts, ta, tel){
+  const boite = neud("div", "saisie-tel");
+  const champ = document.createElement("input");
+  champ.type = "text";
+  champ.autocapitalize = "off";
+  champ.spellcheck = false;
+  champ.placeholder = "06 12 34 56 78  ou  contact@club.fr";
+  champ.value = tel || "";
+  champ.setAttribute("aria-label", "Numéro WhatsApp ou adresse mail");
+
+  const envoyer = neud("button", "geste maitre");
+  envoyer.type = "button";
+  envoyer.disabled = true;
+  const dit = neud("p", "saisie-mot", "");
+
+  /* Le bouton dit ou le message va partir : on ne decouvre pas le canal
+     apres avoir clique. */
+  function verifier(){
+    const mail = adresseMail(champ.value);
+    const n = mail ? "" : numeroWa(champ.value);
+    envoyer.disabled = !mail && !n;
+    envoyer.classList.toggle("mail", !!mail);
+    envoyer.innerHTML = mail
+      ? '<span class="ico">\u2709</span><span>Envoyer par mail</span>'
+      : '<span class="ico">\u25B6</span><span>Envoyer</span>';
+    if (mail) dit.textContent = mail + " \u2014 ouvre votre logiciel de mail";
+    else if (n) dit.textContent = "+" + n + " \u2014 ouvre WhatsApp";
+    else dit.textContent = champ.value.trim()
+      ? "Ni un numéro ni une adresse mail valable."
+      : "";
+  }
+  champ.addEventListener("input", verifier);
+  champ.addEventListener("keydown", e => { if (e.key === "Enter") envoyer.click(); });
+
+  envoyer.addEventListener("click", async () => {
+    const mail = adresseMail(champ.value);
+    const n = mail ? "" : numeroWa(champ.value);
+    if (!mail && !n) return;
+    // On ouvre tout de suite : l'enregistrement ne doit pas retarder l'envoi.
+    if (mail) {
+      ouvrirMail(mail, sujetMail(t), ta.value);
+      toast("Mail ouvert — relisez-le, et joignez la plaquette avant d\u2019envoyer");
+    } else if (window.Envoyer) {
+      /* Le message part vraiment : ouvrir « wa.me » laissait croire a un
+         envoi qui n'avait pas eu lieu. */
+      await Envoyer.direct({tel: champ.value.trim(), corps: ta.value,
+                            club_id: t.club_id, tournament_id: t.id}, envoyer);
+    } else {
+      ouvrirLien("https://wa.me/" + n + "?text=" + encodeURIComponent(ta.value));
+    }
+    if (!t.club_id) {
+      toast((mail ? "Adresse utilisée" : "Numéro utilisé")
+            + " — aucun club en base pour le retenir");
+      return;
+    }
+    try {
+      await api("/api/clubs/" + t.club_id, "PATCH",
+                mail ? {email: mail} : {phone: champ.value.trim()});
+      toast(mail ? "Adresse enregistrée sur la fiche du club"
+                 : "Numéro enregistré sur la fiche du club");
+      await aValider();
+    } catch (e) { toast("Envoi fait, enregistrement raté : " + e.message); }
+  });
+
+  boite.append(champ, envoyer, dit);
+  acts.appendChild(boite);
+  verifier();
+}
+
+/* « Je l'ai deja envoye » : le message est parti a la main, hors du CRM. On le
+   trace a sa vraie date et on programme les relances dessus — sinon la cadence
+   J+4 / J+10 / J+21 partirait d'aujourd'hui et arriverait trop tard. */
+function bloquerDeja(P, t, acts, ta){
+  const ouvrir = neud("button", "geste discret");
+  ouvrir.innerHTML = '<span class="ico">\u2713</span><span>Je l’ai envoyé</span>';
+  ouvrir.type = "button";
+  ouvrir.title = "Message parti hors du CRM : le tracer à sa vraie date, "
+    + "ranger la date et programmer la relance";
+  acts.appendChild(ouvrir);
+
+  const boite = neud("div", "deja");
+  boite.hidden = true;
+
+  const quand = document.createElement("input");
+  quand.type = "date";
+  quand.max = new Date().toISOString().slice(0, 10);
+  quand.value = quand.max;
+  quand.setAttribute("aria-label", "Date d'envoi");
+
+  const tel = document.createElement("input");
+  tel.type = "tel";
+  tel.placeholder = "06 12 34 56 78";
+  tel.value = (t.draft && t.draft.contact_phone) || t.club_phone || "";
+  tel.setAttribute("aria-label", "Numéro utilisé");
+
+  const ok = neud("button", "geste trouver");
+  ok.innerHTML = '<span class="ico">\u23F1</span><span>Tracer et relancer</span>';
+  ok.type = "button";
+  const mot = neud("p", "deja-mot", "");
+
+  ouvrir.addEventListener("click", () => {
+    boite.hidden = !boite.hidden;
+    if (!boite.hidden) quand.focus();
+  });
+
+  ok.addEventListener("click", async () => {
+    ok.disabled = true;
+    const avant = ok.textContent;
+    ok.textContent = "J'enregistre…";
+    try {
+      const r = await api("/api/tournaments/" + t.id + "/deja-envoye", "POST", {
+        date: quand.value, phone: tel.value.trim(), channel: "whatsapp",
+        club: t.club_name || t.organizer || "", body: ta.value,
+      });
+      const jj = r.prochaine ? String(r.prochaine).slice(0, 10) : null;
+      mot.textContent = r.n_en_retard
+        ? "Relance à faire maintenant : " + r.n_en_retard + " échéance(s) déjà passée(s)."
+        : (jj ? "Prochaine relance le " + jourFr(jj) + "." : "Relances programmées.");
+      toast("Envoi tracé sur " + (r.club || "le club"));
+      await aValider();
+    } catch (e) {
+      mot.textContent = "Échec : " + e.message;
+      ok.disabled = false;
+      ok.textContent = avant;
+    }
+  });
+
+  boite.append(quand, tel, ok, mot);
+  acts.appendChild(boite);
+}
+
+function jourFr(iso){
+  const d = new Date(iso + "T12:00:00");
+  return isNaN(d) ? iso
+    : d.toLocaleDateString("fr-FR", {weekday: "long", day: "numeric", month: "long"});
+}
+
+async function copier(txt){
+  try {
+    if (navigator.clipboard && window.isSecureContext) {
+      await navigator.clipboard.writeText(txt);
+    } else {
+      const z = document.createElement("textarea");
+      z.value = txt; z.style.cssText = "position:fixed;top:0;left:0;opacity:0";
+      document.body.appendChild(z); z.select();
+      document.execCommand("copy"); z.remove();
+    }
+    toast("Message copié");
+  } catch (e) { toast("Copie impossible"); }
+}
+
+/* La hauteur du message depend de sa largeur, et une carte peut naitre a une
+   largeur nulle avant d'etre mise en page : on suit la largeur reelle. */
+function suivreLargeur(corps, ta){
+  if (!window.ResizeObserver) return;
+  let vue = 0;
+  new ResizeObserver(entrees => {
+    const l = Math.round(entrees[0].contentRect.width);
+    if (l === vue) return;
+    vue = l;
+    ajuster(ta);
+  }).observe(corps);
+}
+
+/* ---------- la carte routiere ---------- */
+/* Le trajet part toujours de Cannes : c'est la base de calcul des distances. */
+const DEPART = "Cannes, France";
+
+function destination(t){
+  return [t.city, t.postal_code, "France"].filter(Boolean).join(", ");
+}
+
+function itineraire(dest, mode){
+  return "https://www.google.com/maps/dir/?api=1&origin=" + encodeURIComponent(DEPART)
+       + "&destination=" + encodeURIComponent(dest) + "&travelmode=" + mode;
+}
+
+/* La table des distances ne porte pas de coordonnees : on demande la position
+   de la commune a OpenStreetMap, une seule fois, puis on la garde ici. */
+async function coordonnees(commune, cp){
+  const cle = "geo:" + (cp || "") + ":" + (commune || "");
+  try {
+    const garde = localStorage.getItem(cle);
+    if (garde) return JSON.parse(garde);
+  } catch (e) { /* navigation privee : on redemandera */ }
+
+  const q = [commune, cp, "France"].filter(Boolean).join(", ");
+  let pos = null;
+  try {
+    const r = await fetch("https://nominatim.openstreetmap.org/search?format=json&limit=1&q="
+                          + encodeURIComponent(q));
+    if (r.ok) {
+      const j = await r.json();
+      if (j && j[0]) pos = {lat: Number(j[0].lat), lon: Number(j[0].lon)};
+    }
+  } catch (e) { pos = null; }
+
+  if (pos) { try { localStorage.setItem(cle, JSON.stringify(pos)); } catch (e) {} }
+  return pos;
+}
+
+let reglages = null;
+let modeTrajet = "transit";
+try { modeTrajet = localStorage.getItem("mode-trajet") || "transit"; } catch (e) {}
+
+async function chargerReglages(){
+  if (reglages) return reglages;
+  try { reglages = await api("/api/settings"); } catch (e) { reglages = {}; }
+  const seuil = parseInt(reglages.perimetre_min, 10);
+  if (seuil > 0) JOURNEE_MIN = seuil;
+  return reglages;
+}
+
+/* Le trace et les horaires viennent de l'API d'embed Google, qui demande une
+   cle. Sans elle, Google ne rend qu'un fond de carte sans itineraire : on
+   affiche alors OpenStreetMap, qui situe au moins la commune. */
+function planGoogle(cle, dest){
+  const f = document.createElement("iframe");
+  f.className = "carte-plan";
+  f.loading = "lazy";
+  f.title = "Itinéraire vers " + dest;
+  f.setAttribute("allowfullscreen", "");
+  f.src = "https://www.google.com/maps/embed/v1/directions?key=" + encodeURIComponent(cle)
+        + "&origin=" + encodeURIComponent(DEPART)
+        + "&destination=" + encodeURIComponent(dest)
+        + "&mode=" + modeTrajet;
+  return f;
+}
+
+function choixMode(redessine){
+  const boite = neud("div", "modes");
+  [["Voiture", "driving"], ["Train", "transit"]].forEach(([nom, mode]) => {
+    const b = neud("button", mode === modeTrajet ? "on" : null, nom);
+    b.type = "button";
+    b.addEventListener("click", () => {
+      if (mode === modeTrajet) return;
+      modeTrajet = mode;
+      try { localStorage.setItem("mode-trajet", mode); } catch (e) {}
+      redessine();
+    });
+    boite.appendChild(b);
+  });
+  return boite;
+}
+
+function demandeCle(corps, redessine){
+  const boite = neud("div", "carte-cle");
+  boite.appendChild(neud("p", null, "Tracé et horaires : colle une clé Google Maps Embed."));
+  const rangee = neud("div", "rangee");
+  const champ = document.createElement("input");
+  champ.type = "password";
+  champ.placeholder = "AIza…";
+  champ.setAttribute("aria-label", "Clé Google Maps");
+  const ok = neud("button", "primary", "Enregistrer");
+  ok.type = "button";
+  ok.addEventListener("click", async () => {
+    const v = champ.value.trim();
+    if (!v) return;
+    ok.disabled = true;
+    try {
+      await api("/api/settings", "PUT", {google_maps_key: v});
+      reglages = null;
+      toast("Clé enregistrée");
+      redessine();
+    } catch (e) { toast("Impossible d'enregistrer : " + e.message); ok.disabled = false; }
+  });
+  rangee.append(champ, ok);
+  boite.appendChild(rangee);
+  corps.appendChild(boite);
+}
+
+async function majCarte(P, t, panneau, corps){
+  const mien = ++P.jeton;
+  const redessine = () => majCarte(P, t, panneau, corps);
+  corps.innerHTML = "";
+
+  if (!t.city) { panneau.hidden = true; return; }
+  panneau.hidden = false;
+  corps.appendChild(neud("p", "carte-mot", "Je situe " + t.city + "…"));
+
+  const dest = destination(t);
+  const cfg = await chargerReglages();
+  if (mien !== P.jeton) return;
+  const cle = String((cfg && cfg.google_maps_key) || "").trim();
+
+  // --- avec la cle : l'itineraire de Google, trace et horaires compris
+  if (cle) {
+    corps.innerHTML = "";
+    corps.appendChild(planGoogle(cle, dest));
+    const actions = neud("div", "carte-acts");
+    actions.appendChild(choixMode(redessine));
+    const grand = neud("button", "link", "Ouvrir en grand");
+    grand.type = "button";
+    grand.addEventListener("click", () => {
+      ouvrirLien(itineraire(dest, modeTrajet));
+    });
+    actions.appendChild(grand);
+    corps.appendChild(actions);
+    return;
+  }
+
+  // --- sans cle : OpenStreetMap situe la commune, les boutons font le reste
+  const pos = await coordonnees(t.city, t.postal_code);
+  if (mien !== P.jeton) return;
+  corps.innerHTML = "";
+
+  if (pos) {
+    const cadre = document.createElement("iframe");
+    cadre.className = "carte-plan";
+    cadre.loading = "lazy";
+    cadre.title = "Carte de " + t.city;
+    cadre.src = "https://www.openstreetmap.org/export/embed.html?bbox="
+      + (pos.lon - 0.09) + "," + (pos.lat - 0.05) + ","
+      + (pos.lon + 0.09) + "," + (pos.lat + 0.05)
+      + "&layer=mapnik&marker=" + pos.lat + "," + pos.lon;
+    corps.appendChild(cadre);
+  } else {
+    corps.appendChild(neud("p", "carte-mot",
+      "Impossible de situer " + t.city + " — pas de réseau, ou commune inconnue."));
+  }
+
+  const actions = neud("div", "carte-acts");
+  [["En voiture", "driving"], ["En train", "transit"]].forEach(([nom, mode]) => {
+    const b = neud("button", "plain", nom);
+    b.type = "button";
+    b.addEventListener("click", () => ouvrirLien(itineraire(dest, mode)));
+    actions.appendChild(b);
+  });
+  corps.appendChild(actions);
+  demandeCle(corps, redessine);
+}
+
+
+/* ---------- les groupes Facebook ----------
+   Le serveur ne peut pas les parcourir : ils sont derriere le login et une
+   collecte automatisee est interdite par Meta. La passe automatique est la
+   routine de 7 h 30, qui ouvre les groupes sans les lire. Ce bouton-ci sert a la passe a la
+   main : il ouvre la grille Media de chaque groupe — c'est la que sont les
+   affiches — et le collage (⌘V) les ramene dans la boite de depot. */
+const GROUPES_FB = [
+  ["Tournoi/Match FOOT 06", "248248220278380"],
+  ["Tournoi Foot PACA", "385898738994736"],
+  ["Tournoi/Match FOOT 83", "132070762115017"],
+  ["matchs amicaux U6 à U13", "448924438641261"],
+  ["Réseau Coach U9 PACA", "178768856388067"],
+  ["Réseau Coach U12 PACA", "455204911672202"],
+  ["Tournoi de Football", "342629809940408"],
+  ["AS Monaco foot", "308118053101678"],
+  ["Monaco & The French Riviera", "282010775325375"],
+  ["Tournois 2 FOOT (toute la France)", "915471193354382"],
+  ["Tournois national et international", "498967844167417"],
+  ["Le bon coin des tournois", "969326264002358"],
+  ["Paris, Hauts-de-France & BELGIQUE U13-U15", "2036051130098178"],
+  ["Tournois Jeunes Hainaut & Nord (BE/FR)", "1036681199795013"],
+  ["Football matchs et tournois internationaux", "1384541088519330"],
+  ["Événements/tournois U10 a U13", "492050547956767"],
+  ["Tournois de football feminin", "2959369630819907"],
+  ["Écoles de Foot - Ile de France", "756310617843680"],
+  ["Tournois en Pays de la Loire", "783563849466059"],
+  ["Tournoi en Bretagne", "652298488576905"],
+  ["Tournoi de foot dans la Normandie", "110530655649765"],
+  ["Éducateurs U12-U13 Nord-Pas-de-Calais", "149507328962394"],
+  ["Tournoi de foot 69/01/71", "3001324573485782"],
+  ["Tournoi/Match FOOT Corse", "2532443237056819"],
+];
+
+const btnGroupes = $("#groupes"), listeGroupes = $("#groupes-liste");
+
+function poserListes(groupes, cherches){
+groupes.forEach(g => {
+  const a = document.createElement("a");
+  a.className = "groupe";
+  a.href = g.url || ("https://www.facebook.com/groups/" + g.id + "/media");
+  a.target = "_blank";
+  a.rel = "noopener";
+  a.textContent = g.nom;
+  a.title = "Ouvre la grille des affiches de « " + g.nom + " »";
+  listeGroupes.appendChild(a);
+});
+
+const mot = neud("p", "zone-mot",
+  "Ouvre la grille des affiches. Copie une affiche, reviens ici, ⌘V — "
+  + "elle atterrit dans la boîte de dépôt.");
+listeGroupes.appendChild(mot);
+
+/* Les groupes ci-dessus sont tous du football : c'est la seule discipline qui
+   ait un vrai reseau de groupes d'annonces, et leur liste est publiee par
+   tournoisfootball.fr. Pour le reste, personne ne tient d'annuaire — il faut
+   aller voir. On n'invente donc PAS d'identifiants de groupe : un numero
+   devine ouvre une page morte, ou un groupe qui n'a rien a voir. On ouvre la
+   recherche de Facebook, dans Chrome ou Julien est connecte, et c'est lui qui
+   juge et qui demande a rejoindre. */
+listeGroupes.appendChild(neud("p", "zone-mot",
+  "Les groupes ci-dessus sont tous du football. Pour les autres sports, "
+  + "cherche-les toi-même — un clic ouvre la recherche Facebook :"));
+
+const SPORTS_FB = [
+  ["Badminton", "tournoi badminton PACA"],
+  ["Basket", "tournoi basket Provence Côte d'Azur"],
+  ["Handball", "tournoi handball PACA"],
+  ["Volley", "tournoi volley Provence"],
+  ["Rugby", "tournoi rugby jeunes Provence"],
+  ["Judo & arts martiaux", "tournoi judo PACA"],
+  ["Gym & GR", "compétition gymnastique PACA"],
+  ["Danse", "gala concours danse Côte d'Azur"],
+  ["Équitation", "concours équitation PACA"],
+  ["Natation", "meeting natation PACA"],
+  ["Auto & moto", "rassemblement auto moto Provence"],
+  ["Course & trail", "trail course à pied Alpes-Maritimes Var"],
+  ["Aix & Marseille, tout sport", "tournoi sport Aix-en-Provence Marseille"],
+  /* Hors sport : ce qui rassemble des familles venues pour UNE personne.
+     Un defile caritatif, un gala d'ecole de mode, une election de miss de
+     village — le public y est exactement celui qui achete sa photo. Ces
+     evenements ne vivent que sur Facebook et dans la presse locale : aucun
+     agenda officiel ne les publie. */
+  ["Défilés de mode", "défilé de mode Côte d'Azur"],
+  ["Élections de miss", "élection miss comité des fêtes Var Alpes-Maritimes"],
+  ["Mini-miss & galas d'école", "mini miss gala école de mode Provence"],
+  ["Comités des fêtes", "comité des fêtes Alpes-Maritimes animations"],
+  ["Galeries & centres commerciaux", "Cap 3000 Polygone Riviera animations événements"],
+  ["Caritatif (Téléthon, Octobre Rose)", "Téléthon Octobre Rose Côte d'Azur soirée gala"],
+];
+
+cherches.forEach(c => {
+  const a = document.createElement("a");
+  a.className = "groupe cherche";
+  a.href = c.url || ("https://www.facebook.com/search/groups/?q="
+                     + encodeURIComponent(c.q));
+  a.target = "_blank";
+  a.rel = "noopener";
+  a.textContent = "🔎 " + c.nom;
+  a.title = "Cherche « " + c.q + " » dans les groupes Facebook";
+  listeGroupes.appendChild(a);
+});
+}
+
+/* La liste du serveur fait foi. Celle d'ici ne sert que s'il ne repond pas :
+   mieux vaut une liste de secours qu'un panneau vide. */
+fetch("/api/groupes")
+  .then(r => r.json())
+  .then(d => poserListes(d.items || [], d.cherches || []))
+  .catch(() => poserListes(
+    GROUPES_FB.map(([nom, id]) => ({nom: nom, id: id})),
+    SPORTS_FB.map(([nom, q]) => ({nom: nom, q: q}))));
+
+/* Une recherche se distingue d'un groupe deja repertorie : l'une mene a une
+   liste a trier, l'autre droit aux affiches. */
+const styleCherche = document.createElement("style");
+styleCherche.textContent =
+  ".groupe.cherche{background:transparent; border-style:dashed; opacity:.9}"
+  + ".groupe.cherche:hover{opacity:1}";
+document.head.appendChild(styleCherche);
+
+/* Le favori de capture. Facebook n'a pas d'API pour les groupes et un robot
+   qui les lirait chaque matin ferait fermer le compte — donc c'est un clic de
+   Julien, dans sa navigation, qui declenche la lecture de la page ouverte. */
+const outil = neud("p", "zone-mot");
+const lien = document.createElement("a");
+lien.className = "groupe";
+lien.textContent = "📋 Lire les annonces";
+lien.href = 'javascript:%28function%28%29%7B%20var%20blocs%20%3D%20%5B%5D%2C%20vus%20%3D%20%7B%7D%3B%20var%20posts%20%3D%20document.querySelectorAll%28%27%5Brole%3D%22article%22%5D%27%29%3B%20if%20%28%21posts.length%29%20posts%20%3D%20document.querySelectorAll%28%27%5Bdata-pagelet%5E%3D%22FeedUnit%22%5D%2C%20%5Bdata-ad-preview%3D%22message%22%5D%27%29%3B%20for%20%28var%20i%20%3D%200%3B%20i%20%3C%20posts.length%3B%20i%2B%2B%29%20%7B%20var%20t%20%3D%20%28posts%5Bi%5D.innerText%20%7C%7C%20%27%27%29.trim%28%29%3B%20if%20%28t.length%20%3C%2040%29%20continue%3B%20var%20cle%20%3D%20t.slice%280%2C%2080%29%3B%20if%20%28vus%5Bcle%5D%29%20continue%3B%20vus%5Bcle%5D%20%3D%201%3B%20var%20lien%20%3D%20%27%27%3B%20var%20as%20%3D%20posts%5Bi%5D.querySelectorAll%28%27a%5Bhref%2A%3D%22%2Fposts%2F%22%5D%2C%20a%5Bhref%2A%3D%22%2Fpermalink%2F%22%5D%2C%20a%5Bhref%2A%3D%22fbid%3D%22%5D%27%29%3B%20if%20%28as.length%29%20lien%20%3D%20as%5B0%5D.href.split%28%27%3F%27%29%5B0%5D%3B%20var%20aff%20%3D%20%27%27%2C%20best%20%3D%200%3B%20var%20imgs%20%3D%20posts%5Bi%5D.querySelectorAll%28%27img%27%29%3B%20for%20%28var%20k%20%3D%200%3B%20k%20%3C%20imgs.length%3B%20k%2B%2B%29%20%7B%20var%20im%20%3D%20imgs%5Bk%5D%3B%20var%20w%20%3D%20im.naturalWidth%20%7C%7C%20im.width%20%7C%7C%200%2C%20h%20%3D%20im.naturalHeight%20%7C%7C%20im.height%20%7C%7C%200%3B%20if%20%28w%20%3C%20250%20%7C%7C%20h%20%3C%20250%29%20continue%3B%20if%20%28%21%2F%5Ehttps%3F%3A%2F.test%28im.src%29%29%20continue%3B%20if%20%28w%20%2A%20h%20%3E%20best%29%20%7B%20best%20%3D%20w%20%2A%20h%3B%20aff%20%3D%20im.src%3B%20%7D%20%7D%20blocs.push%28t%20%2B%20%28lien%20%3F%20%27%5Cn%27%20%2B%20lien%20%3A%20%27%27%29%20%2B%20%28aff%20%3F%20%27%5CnAFFICHE%3A%20%27%20%2B%20aff%20%3A%20%27%27%29%29%3B%20%7D%20var%20texte%20%3D%20blocs.join%28%27%5Cn---%5Cn%27%29%3B%20if%20%28%21texte%29%20%7B%20alert%28%27Aucune%20annonce%20lue.%20Fais%20defiler%20la%20page%20puis%20reclique.%27%29%3B%20return%3B%20%7D%20function%20fini%28%29%7B%20alert%28blocs.length%20%2B%20%27%20annonce%28s%29%20copiee%28s%29%2C%20affiches%20comprises.%5Cn%5CnVa%20dans%20SnapActions%2C%20onglet%20Groupes%2C%20et%20colle%20%28Cmd%2BV%29.%27%29%3B%20%7D%20if%20%28navigator.clipboard%20%26%26%20navigator.clipboard.writeText%29%20%7B%20navigator.clipboard.writeText%28texte%29.then%28fini%2C%20secours%29%3B%20%7D%20else%20%7B%20secours%28%29%3B%20%7D%20function%20secours%28%29%7B%20var%20z%20%3D%20document.createElement%28%27textarea%27%29%3B%20z.value%20%3D%20texte%3B%20z.style.cssText%20%3D%20%27position%3Afixed%3Btop%3A-2000px%27%3B%20document.body.appendChild%28z%29%3B%20z.select%28%29%3B%20try%20%7B%20document.execCommand%28%27copy%27%29%3B%20fini%28%29%3B%20%7D%20catch%28e%29%7B%20alert%28%27Copie%20refusee%20par%20Facebook.%20Selectionne%20la%20page%20%28Cmd%2BA%29%20puis%20copie%20a%20la%20main.%27%29%3B%20%7D%20z.remove%28%29%3B%20%7D%20%7D%29%28%29%3B';
+lien.title = "Glisse-moi dans la barre de favoris de Chrome, "
+  + "puis clique-moi quand tu es sur un groupe";
+lien.addEventListener("click", ev => {
+  ev.preventDefault();
+  toast("Glisse ce bouton dans ta barre de favoris Chrome, "
+        + "puis clique-le depuis un groupe Facebook");
+});
+outil.append(lien, document.createTextNode(
+  " — à glisser une fois dans la barre de favoris de Chrome. "
+  + "Sur un groupe, un clic copie toutes les annonces visibles ; "
+  + "reviens ici et colle-les ci-dessous."));
+listeGroupes.appendChild(outil);
+
+/* Un seul lecteur pour toutes les federations.
+
+   Le badminton, le tennis, le basket, l'equitation : aucune n'a d'API, et
+   toutes sont des applications JavaScript dont la liste n'existe que dans
+   un navigateur. Plutot qu'un lecteur par site — a reecrire des qu'ils
+   changent une classe CSS — celui-ci part des DATES visibles a l'ecran et
+   remonte au bloc qui les porte. Il marche partout ou une liste d'evenements
+   s'affiche, y compris sur un site qu'on n'a jamais vu. */
+const outilBad = neud("p", "zone-mot");
+const lienBad = document.createElement("a");
+lienBad.className = "groupe";
+lienBad.textContent = "\u{1F4C5} Lire les dates de cette page";
+lienBad.href = "javascript:%28function%28%29%7B%0A%20var%20MOIS%3D%27janvier%7Cfevrier%7Cf%C3%A9vrier%7Cmars%7Cavril%7Cmai%7Cjuin%7Cjuillet%7Caout%7Cao%C3%BBt%7Cseptembre%7Coctobre%7Cnovembre%7Cdecembre%7Cd%C3%A9cembre%7Cjanv%7Cfevr%7Cf%C3%A9vr%7Csept%7Coct%7Cnov%7Cdec%7Cd%C3%A9c%27%3B%0A%20var%20RXDATE%3Dnew%20RegExp%28%27%28%5C%5Cb%5B0-3%5D%3F%5C%5Cd%5B%5C%5C%2F.-%5D%5B01%5D%3F%5C%5Cd%5B%5C%5C%2F.-%5D%2820%29%3F%5C%5Cd%5C%5Cd%5C%5Cb%29%7C%28%5C%5Cb%5B0-3%5D%3F%5C%5Cd%5C%5Cs%2B%28%27%2BMOIS%2B%27%29%5C%5Cb%29%27%2C%27i%27%29%3B%0A%20var%20vus%3D%7B%7D%2C%20out%3D%5B%5D%3B%0A%20var%20tous%3Ddocument.body.querySelectorAll%28%27%2A%27%29%3B%0A%20for%28var%20i%3D0%3Bi%3Ctous.length%3Bi%2B%2B%29%7B%0A%20%20var%20el%3Dtous%5Bi%5D%3B%0A%20%20if%28el.children.length%29%20continue%3B%0A%20%20var%20t%3D%28el.textContent%7C%7C%27%27%29.trim%28%29%3B%0A%20%20if%28%21t%20%7C%7C%20t.length%3E60%20%7C%7C%20%21RXDATE.test%28t%29%29%20continue%3B%0A%20%20var%20n%3Del%3B%0A%20%20for%28var%20k%3D0%3Bk%3C7%20%26%26%20n%3Bk%2B%2B%29%7B%0A%20%20%20var%20tx%3D%28n.innerText%7C%7C%27%27%29.trim%28%29%3B%0A%20%20%20if%28tx.length%3E60%20%26%26%20tx.length%3C700%29%20break%3B%0A%20%20%20n%3Dn.parentElement%3B%0A%20%20%7D%0A%20%20if%28%21n%29%20continue%3B%0A%20%20var%20txt%3D%28n.innerText%7C%7C%27%27%29.replace%28%2F%5Cn%7B2%2C%7D%2Fg%2C%27%5Cn%27%29.trim%28%29%3B%0A%20%20if%28txt.length%3C40%20%7C%7C%20txt.length%3E700%29%20continue%3B%0A%20%20var%20cle%3Dtxt.slice%280%2C70%29%3B%0A%20%20if%28vus%5Bcle%5D%29%20continue%3B%0A%20%20vus%5Bcle%5D%3D1%3B%0A%20%20var%20a%3Dn.querySelector%28%27a%5Bhref%5D%27%29%7C%7C%28n.closest%3Fn.closest%28%27a%5Bhref%5D%27%29%3Anull%29%3B%0A%20%20out.push%28txt%2B%28a%3F%27%5Cn%27%2Ba.href%3A%27%27%29%29%3B%0A%20%7D%0A%20if%28%21out.length%29%7B%20alert%28%27Aucune%20date%20lue%20sur%20cette%20page.%5Cn%5CnLance%20la%20recherche%2C%20attends%20que%20la%20liste%20s%E2%80%99affiche%2C%20puis%20reclique.%27%29%3B%20return%3B%20%7D%0A%20var%20texte%3Dout.join%28%27%5Cn---%5Cn%27%29%3B%0A%20function%20fini%28%29%7B%20alert%28out.length%2B%27%20%C3%A9v%C3%A9nement%28s%29%20copi%C3%A9%28s%29.%5Cn%5CnVa%20dans%20SnapActions%2C%20Rep%C3%A9rage%2C%20et%20colle%20%28Cmd%2BV%29%20dans%20la%20bo%C3%AEte%20des%20annonces.%27%29%3B%20%7D%0A%20function%20secours%28%29%7B%20var%20z%3Ddocument.createElement%28%27textarea%27%29%3B%20z.value%3Dtexte%3B%20z.style.cssText%3D%27position%3Afixed%3Btop%3A-2000px%27%3B%20document.body.appendChild%28z%29%3B%20z.select%28%29%3B%20try%7B%20document.execCommand%28%27copy%27%29%3B%20fini%28%29%3B%20%7Dcatch%28e%29%7B%20alert%28%27Copie%20refus%C3%A9e.%20S%C3%A9lectionne%20la%20page%20%28Cmd%2BA%29%20puis%20copie%20%C3%A0%20la%20main.%27%29%3B%20%7D%20z.remove%28%29%3B%20%7D%0A%20if%28navigator.clipboard%26%26navigator.clipboard.writeText%29%7B%20navigator.clipboard.writeText%28texte%29.then%28fini%2Csecours%29%3B%20%7D%20else%20%7B%20secours%28%29%3B%20%7D%0A%7D%29%28%29%3B";
+lienBad.title = "Glisse-moi dans la barre de favoris, puis clique-moi sur "
+  + "n\u2019importe quelle liste de tournois";
+lienBad.addEventListener("click", ev => {
+  ev.preventDefault();
+  toast("Glisse ce bouton dans ta barre de favoris, puis clique-le sur une "
+        + "liste de tournois");
+});
+outilBad.appendChild(lienBad);
+
+/* Les trois gisements les plus gros, mesures sur les licencies de moins de
+   vingt ans du 06 et du 83 : le tennis (2 294 jeunes, huit dates en base),
+   le basket (2 210 jeunes, cinq dates), le badminton (deja moissonne). */
+const FEDES = [
+  ["\u{1F3BE} Tennis — Ten'Up", "https://tenup.fft.fr/recherche/tournois"],
+  ["\u{1F3F8} Badminton — BadNet", "https://badnet.fr/tournoi/recherche"],
+  ["\u{1F3C0} Basket — FFBB", "https://competitions.ffbb.com/"],
+  ["\u{1F40E} Équitation — FFE", "https://ffecompet.ffe.com/concours/recherche"],
+];
+FEDES.forEach(([nom, url]) => {
+  const b = neud("button", "groupe cherche", nom);
+  b.type = "button";
+  b.title = "Ouvre " + url + " dans Chrome — lance la recherche, puis clique le favori";
+  b.addEventListener("click", async () => {
+    await api("/api/ouvrir", "POST", {url: url}).catch(() => {});
+    toast("Ouvert dans Chrome — lance la recherche, puis clique \u{1F4C5}");
+  });
+  outilBad.appendChild(b);
+});
+outilBad.appendChild(document.createTextNode(
+  " — ces fédérations n\u2019ont ni API ni page lisible : tu lances la "
+  + "recherche, le favori lit ce qui s\u2019affiche."));
+listeGroupes.appendChild(outilBad);
+
+const collage = document.createElement("textarea");
+collage.id = "groupes-collage";
+collage.rows = 3;
+collage.placeholder = "Colle ici les annonces copiées depuis un groupe (⌘V)…";
+collage.style.cssText = "width:100%;margin-top:10px";
+listeGroupes.appendChild(collage);
+
+const barreG = neud("p", "zone-mot");
+const btnLire = document.createElement("button");
+btnLire.type = "button"; btnLire.className = "primary";
+btnLire.textContent = "Repérer les tournois";
+barreG.appendChild(btnLire);
+listeGroupes.appendChild(barreG);
+const resG = document.createElement("div");
+resG.id = "groupes-resultat";
+listeGroupes.appendChild(resG);
+
+btnLire.addEventListener("click", async () => {
+  const texte = collage.value.trim();
+  if (!texte) { toast("Colle d'abord les annonces"); return; }
+  btnLire.disabled = true; btnLire.textContent = "Lecture…";
+  try {
+    const d = await api("/api/groupes/capture", "POST", {text: texte});
+    dessinerCaptures(d);
+  } catch (e) { toast("Échec : " + e.message); }
+  btnLire.disabled = false; btnLire.textContent = "Repérer les tournois";
+});
+
+function dessinerCaptures(d){
+  resG.innerHTML = "";
+  if (!d.n) {
+    resG.appendChild(neud("p", "zone-mot",
+      d.blocs + " bloc(s) lu(s), aucune date de tournoi dedans."));
+    return;
+  }
+  resG.appendChild(neud("p", "zone-mot",
+    d.n + " tournoi(s) repere(s) sur " + d.blocs + " annonce(s). Décoche ce qui ne va pas."));
+  d.items.forEach((it, i) => {
+    const l = document.createElement("label");
+    l.className = "groupe";
+    l.style.cssText = "display:flex;gap:8px;align-items:flex-start;width:100%;margin-top:6px";
+    const c = document.createElement("input");
+    c.type = "checkbox"; c.checked = true; c.dataset.i = i;
+    const txt = document.createElement("span");
+    txt.innerHTML = "<b>" + (it.titre_propose || it.nom) + "</b><br>"
+      + it.debut + (it.fin !== it.debut ? " → " + it.fin : "")
+      + " · " + (it.ville || "lieu inconnu") + (it.dept ? " (" + it.dept + ")" : "")
+      + " · " + it.confiance + "% sûr"
+      + (it.telephones && it.telephones.length ? " · " + it.telephones.join(", ") : "");
+    l.append(c, txt);
+    resG.appendChild(l);
+  });
+  const ok = document.createElement("button");
+  ok.type = "button"; ok.className = "primary"; ok.textContent = "Ajouter à la veille";
+  ok.style.marginTop = "10px";
+  ok.addEventListener("click", async () => {
+    const gardes = [...resG.querySelectorAll("input[type=checkbox]")]
+      .filter(c => c.checked).map(c => d.items[+c.dataset.i]);
+    if (!gardes.length) { toast("Rien de coché"); return; }
+    try {
+      const r = await api("/api/groupes/valider", "POST", {items: gardes});
+      toast(r.created + " fiche(s) ajoutée(s)"
+            + (r.hors_perimetre ? ", " + r.hors_perimetre + " hors périmètre" : ""));
+      collage.value = ""; resG.innerHTML = "";
+      aValider();
+    } catch (e) { toast("Échec : " + e.message); }
+  });
+  resG.appendChild(ok);
+}
+
+btnGroupes.addEventListener("click", () => {
+  const ouvert = listeGroupes.hidden;
+  listeGroupes.hidden = !ouvert;
+  btnGroupes.setAttribute("aria-expanded", ouvert ? "true" : "false");
+});
+
+
+/* ---------- apres l'analyse : on ouvre la fiche, point ----------
+   Pas de panneau de resume : ce qu'on veut voir apres avoir scanne une
+   affiche, c'est la carte du tournoi avec la distance, les equipes et le
+   message pret a partir. On va la chercher par son identifiant, meme si sa
+   date est passee ou si le tiroir courant l'aurait ecartee. */
+async function ouvrirAnalyse(r){
+  const zone = $("#resultat");
+  if (zone) { zone.hidden = true; zone.innerHTML = ""; }
+
+  const lus = r.items || [];
+  const remarques = (r.soucis || []).slice();
+  const ids = [];
+  lus.forEach(x => {
+    const t = x.tournoi || {};
+    if (t.id) ids.push(t.id);
+    else remarques.push((x.fichier || "Document")
+      + " : aucune date lisible, la fiche n'a pas été créée.");
+  });
+  if (!ids.length) { direRemarques(remarques); return 0; }
+
+  let rows = [];
+  try {
+    rows = ((await api("/api/tournaments/a-valider?ids=" + ids.join(","))) || {}).items || [];
+  } catch (e) { rows = []; }
+  if (!rows.length) { direRemarques(remarques); return 0; }
+
+  const auj = new Date().toISOString().slice(0, 10);
+  rows.forEach(t => {
+    if (t.start_date && t.start_date < auj) {
+      remarques.push(titreFiche(t) + " : affiche du " + jour(t.start_date)
+        + ", édition passée — la fiche reste ouverte ci-dessous.");
+    }
+  });
+
+  const deja = {};
+  P_FLYER.toutes.forEach(t => deja[cleFiche(t)] = true);
+  P_FLYER.toutes = rows.filter(t => !deja[cleFiche(t)]).concat(P_FLYER.toutes);
+  P_FLYER.epingles = rows.map(cleFiche);
+  P_FLYER.ouvert = cleFiche(rows[0]);
+  appliquerTiroir(P_FLYER);
+
+  const el = P_FLYER.liste.querySelector(".carte.ouverte");
+  if (el) el.scrollIntoView({block: "start", behavior: "smooth"});
+  direRemarques(remarques);
+  return rows.length;
+}
+
+function direRemarques(liste){
+  const boite = $("#soucis");
+  if (!boite) return;
+  if (!liste.length) { boite.hidden = true; boite.textContent = ""; return; }
+  boite.hidden = false;
+  boite.textContent = liste.join("  ·  ");
+}
+
+
+
+
+
+/* La veille interroge les sources configurees et remplit la liste. Elle ne
+   redige rien : on ne veut pas de brouillons de masse sans les avoir vus. */
+const btnVeille = $("#veille"), soucisNet = $("#soucis-net");
+const scouterMot = btnVeille.querySelector(".scouter-mot");
+
+btnVeille.addEventListener("click", async () => {
+  btnVeille.disabled = true;
+  btnVeille.dataset.scan = "1";
+  const avant = scouterMot.textContent;
+  scouterMot.textContent = "Scan\u2026";
+  soucisNet.hidden = true;
+  try {
+    const r = await api("/api/watch/run", "POST", {generate: false});
+    const src = r.sources || [];
+    const neufs = src.reduce((n, x) => n + (x.n_created || 0), 0);
+    const rates = src.filter(x => !x.ok);
+    await aValider();
+    toast(neufs ? (neufs === 1 ? "1 tournoi trouv\u00e9" : neufs + " tournois trouv\u00e9s")
+                : "Rien de nouveau");
+    if (!src.length) {
+      soucisNet.hidden = false;
+      soucisNet.textContent = "Aucune source configur\u00e9e dans la plateforme compl\u00e8te.";
+    } else if (rates.length) {
+      soucisNet.hidden = false;
+      soucisNet.textContent = rates.map(x => x.error || "source en \u00e9chec").join(" \u00b7 ");
+    }
+  } catch (e) {
+    soucisNet.hidden = false;
+    soucisNet.textContent = "Recherche impossible : " + e.message;
+  }
+  btnVeille.disabled = false;
+  delete btnVeille.dataset.scan;
+  scouterMot.textContent = avant;
+});
+
+
+$("#refresh").addEventListener("click", e => { e.preventDefault(); aValider(); });
+
+/* Le serveur tourne-t-il bien le code d'aujourd'hui ? */
+(async () => {
+  let vieux = false;
+  try {
+    const r = await fetch("/api/version");
+    vieux = !r.ok;
+  } catch (e) { vieux = true; }
+  if (!vieux) return;
+  const b = document.createElement("div");
+  b.style.cssText = "margin:18px 0 0;padding:16px 18px;border-radius:14px;"
+    + "background:var(--blue-soft);border:1px solid var(--blue);font-size:15px;"
+    + "display:flex;gap:12px;align-items:center;flex-wrap:wrap";
+  const t = document.createElement("span");
+  t.style.cssText = "flex:1;min-width:220px";
+  t.textContent = "Le serveur tourne encore sur une version précédente. "
+    + "Relance-le pour que les nouveautés fonctionnent.";
+  const go = document.createElement("button");
+  go.className = "primary"; go.textContent = "Relancer le serveur";
+  go.addEventListener("click", async () => {
+    go.disabled = true; go.textContent = "Redémarrage…";
+    try { await fetch("/api/redemarrer", {method:"POST"}); } catch (e) {}
+    setTimeout(() => location.reload(), 2500);
+  });
+  b.append(t, go);
+  document.querySelector("header").after(b);
+})();
+
+
+/* ---------- Grands rassemblements ----------
+   Un tournoi se vend au club, un rassemblement se vend aux gens presents.
+   On note donc chaque annonce sur ce qui fait vendre : de la famille, de la
+   foule, du plein air. Une reunion de conseil municipal tombe a zero. */
+const rassLiens = $("#rass-liens"), rassCollage = $("#rass-collage"),
+      rassResultat = $("#rass-resultat");
+
+$("#rass-chasse").addEventListener("click", async () => {
+  if (!rassLiens.hidden) { rassLiens.hidden = true; return; }
+  rassLiens.hidden = false;
+  if (rassLiens.dataset.pret) return;
+  try {
+    const d = await api("/api/rassemblements/chasse");
+    const familles = {};
+    d.items.forEach(it => { (familles[it.famille] = familles[it.famille] || []).push(it); });
+    Object.keys(familles).forEach(f => {
+      const titre = neud("p", "zone-mot", f);
+      titre.style.cssText = "flex:1 0 100%;margin:8px 0 2px";
+      const tout = document.createElement("button");
+      tout.type = "button"; tout.className = "mini";
+      tout.textContent = "Tout ouvrir"; tout.style.marginLeft = "8px";
+      tout.addEventListener("click", async () => {
+        try {
+          const r = await api("/api/rassemblements/ouvrir", "POST",
+                              {urls: familles[f].map(x => x.url)});
+          toast(r.n + " page(s) ouverte(s) dans Chrome");
+        } catch (e) { toast("Échec : " + e.message); }
+      });
+      titre.appendChild(tout);
+      rassLiens.appendChild(titre);
+      familles[f].forEach(it => {
+        const a = document.createElement("a");
+        a.className = "groupe"; a.textContent = it.libelle;
+        a.href = it.url; a.target = "_blank"; a.rel = "noopener";
+        a.addEventListener("click", ev => {
+          ev.preventDefault();
+          api("/api/ouvrir", "POST", {url: it.url})
+            .catch(() => window.open(it.url, "_blank", "noopener"));
+        });
+        rassLiens.appendChild(a);
+      });
+    });
+    const aide = neud("p", "zone-mot",
+      "Ouvre une page, fais défiler, clique le favori « Lire les annonces », "
+      + "puis colle ci-dessous.");
+    aide.style.flex = "1 0 100%";
+    rassLiens.appendChild(aide);
+    rassLiens.dataset.pret = "1";
+  } catch (e) { toast("Échec : " + e.message); }
+});
+
+$("#rass-lire").addEventListener("click", async () => {
+  const texte = rassCollage.value.trim();
+  if (!texte) { toast("Colle d'abord des annonces"); return; }
+  const b = $("#rass-lire");
+  b.disabled = true; b.textContent = "Lecture…";
+  try {
+    dessinerRass(await api("/api/rassemblements/capture", "POST", {text: texte}));
+  } catch (e) { toast("Échec : " + e.message); }
+  b.disabled = false; b.textContent = "Noter les annonces";
+});
+
+function dessinerRass(d){
+  rassResultat.innerHTML = "";
+  if (!d.n) {
+    rassResultat.appendChild(neud("p", "zone-mot",
+      d.blocs + " bloc(s) lu(s), rien qui ressemble à un rassemblement daté."));
+    return;
+  }
+  rassResultat.appendChild(neud("p", "zone-mot",
+    d.n + " rassemblement(s) sur " + d.blocs + " annonce(s), du plus vendeur au moins."));
+  d.items.forEach((it, i) => {
+    const l = document.createElement("label");
+    l.className = "groupe";
+    l.style.cssText = "display:flex;gap:10px;align-items:flex-start;width:100%;margin-top:6px";
+    const c = document.createElement("input");
+    c.type = "checkbox"; c.checked = it.note_photo >= 60; c.dataset.i = i;
+    const note = document.createElement("b");
+    note.textContent = it.note_photo;
+    note.style.cssText = "min-width:32px;color:" +
+      (it.note_photo >= 85 ? "var(--green)" : it.note_photo >= 60 ? "var(--amber)" : "var(--ink-3)");
+    const txt = document.createElement("span");
+    txt.appendChild(Object.assign(document.createElement("b"), {textContent: it.nom}));
+    txt.appendChild(document.createTextNode(" — " + it.genre_libelle));
+    txt.appendChild(document.createElement("br"));
+    txt.appendChild(document.createTextNode(
+      it.debut + (it.fin !== it.debut ? " → " + it.fin : "")
+      + " · " + (it.ville || "lieu inconnu") + (it.dept ? " (" + it.dept + ")" : "")
+      + (it.indices && it.indices.length ? " · " + it.indices.join(", ") : "")));
+    l.append(c, note, txt);
+    rassResultat.appendChild(l);
+  });
+  const ok = document.createElement("button");
+  ok.type = "button"; ok.className = "primary";
+  ok.textContent = "Ajouter à l'agenda"; ok.style.marginTop = "10px";
+  ok.addEventListener("click", async () => {
+    const gardes = [].slice.call(rassResultat.querySelectorAll("input[type=checkbox]"))
+      .filter(c => c.checked).map(c => d.items[+c.dataset.i]);
+    if (!gardes.length) { toast("Rien de coché"); return; }
+    try {
+      const r = await api("/api/rassemblements/valider", "POST", {items: gardes});
+      toast(r.created + " rassemblement(s) ajouté(s)"
+            + (r.hors_perimetre ? ", " + r.hors_perimetre + " hors périmètre" : ""));
+      rassCollage.value = ""; rassResultat.innerHTML = "";
+      aValider();   // les annonces gardees rejoignent la veille et ses tiroirs
+    } catch (e) { toast("Échec : " + e.message); }
+  });
+  rassResultat.appendChild(ok);
+}
+
+/* Le pictogramme du genre : on reconnait une brocante d'une course avant
+   d'avoir lu le titre. */
+const PICTOS_RASS = [
+  [/course|cross|trail|running|marathon/i, "🏃"],
+  [/brocante|vide[- ]grenier|puces/i, "🛒"],
+  [/carnaval|parade|defile|défilé/i, "🎭"],
+  [/kermesse|f[eê]te|festival/i, "🎪"],
+  [/gala|spectacle|danse/i, "💃"],
+  [/concert|musique|fanfare/i, "🎵"],
+  [/march[ée]|no[eë]l/i, "🎄"],
+  [/feu|pyro/i, "🎆"],
+  [/nautique|voile|mer|plage/i, "⛵"],
+  [/v[ée]lo|cyclo|vtt/i, "🚴"],
+  [/[ée]questre|cheval|poney/i, "🐎"],
+];
+
+function pictoRass(it){
+  const texte = [it.genre_libelle, it.name, it.genre].join(" ");
+  for (const [rx, emo] of PICTOS_RASS) if (rx.test(texte)) return emo;
+  return "🎈";
+}
+
+function teinteRass(txt){
+  let h = 0;
+  for (let i = 0; i < (txt || "").length; i++) h = (h * 31 + txt.charCodeAt(i)) % 360;
+  return h;
+}
+
+/* La note dit ce que l'annonce vaut en photos vendues. Un nombre nu ne veut
+   rien dire — « 92 » ne se lit pas. On lui donne son mot. */
+function motNote(n){
+  if (n >= 85) return ["tr\u00e8s vendeur", "fort"];
+  if (n >= 60) return ["\u00e0 regarder", "moyen"];
+  return ["peu vendeur", "faible"];
+}
+
+/* Plus de liste separee : apres validation, les annonces rejoignent la
+   veille d'en haut et ses tiroirs. */
+
+
+aValider();
+</script>
+<script src="/envoyer.js"></script>
+<script src="/nav.js"></script>
+<script src="/bitchat.js"></script>
+</body>
+</html>
